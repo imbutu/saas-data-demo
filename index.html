@@ -1494,6 +1494,11 @@ const HEADER_MAP = {
   'SKU名称':        { field:'sku_name',         source:'dish',    label:'SKU名称' },
   '菜品SKU ID':     { field:'sku_id',           source:'dish',    label:'菜品SKU ID' },
   '菜品分类':       { field:'cate_name',        source:'dish',    label:'菜品分类' },
+  '菜品大类收入构成（按大类名称展示）': { field:'cate_income_ratio', source:'dish', label:'菜品大类收入构成', derived:true },
+  '菜品小类（按名称展示）': { field:'sub_cate_ratio', source:'dish', label:'菜品小类构成', derived:true },
+  '菜品小类':    { field:'sub_cate_ratio', source:'dish', label:'菜品小类构成', derived:true },
+  '出品部门（按名称展示）': { field:'dept_ratio',     source:'dish', label:'出品部门构成', derived:true },
+  '出品部门':    { field:'dept_ratio',     source:'dish', label:'出品部门构成', derived:true },
   '菜品行名称':     { field:'item_name',        source:'dish',    label:'菜品行名称' },
   '单价':           { field:'sku_price',        source:'dish',    label:'单价' },
   '数量':           { field:'sku_cnt',          source:'dish',    label:'数量' },
@@ -1586,6 +1591,8 @@ const SEMANTIC_RULES = [
   { test: /桌[台号名]|餐桌/,    field:'table_name',     source:'order',   label:'桌台名称' },
   { test: /菜品大类.*收入|大类.*收入构成|按大类/, field:'cate_income_ratio', source:'dish', label:'菜品大类收入构成', derived:true },
   { test: /品类.*收入|收入.*构成|收入占比/,      field:'cate_income_ratio', source:'dish', label:'菜品大类收入构成', derived:true },
+  { test: /菜品小类.*展示|小类.*名称|按小类/,   field:'sub_cate_ratio',   source:'dish', label:'菜品小类构成',   derived:true },
+  { test: /出品部门.*展示|按部门.*名称|部门.*展示/, field:'dept_ratio',    source:'dish', label:'出品部门构成',   derived:true },
 ];
 
 function autoSemanticMatch(header) {
@@ -1713,31 +1720,31 @@ const TENANT_DB = {
   t001: {
     name: '海底捞餐饮集团', type: '直营+加盟', tenantId: 't001',
     stores: [['海底捞(望京店)','BJ001','北京'],['海底捞(三里屯店)','BJ002','北京'],['海底捞(陆家嘴店)','SH001','上海'],['海底捞(天府广场店)','CD001','成都'],['海底捞(西湖店)','HZ001','杭州']],
-    dishes: [['毛肚','火锅食材',68],['虾滑','火锅食材',42],['肥牛','火锅食材',58],['鸭血','火锅食材',28],['招牌冰激凌','甜点',12],['海底捞套餐A','套餐',198],['鸭肠','火锅食材',38],['蟹棒','火锅食材',32]],
+    dishes: [['毛肚','火锅食材',68,'内脏类','冷厨部'],['虾滑','火锅食材',42,'海鲜滑','冷厨部'],['肥牛','火锅食材',58,'火锅食材类','热厨部'],['鸭血','火锅食材',28,'火锅食材类','热厨部'],['招牌冰激凌','甜点',12,'甜点类','热厨部'],['海底捞套餐A','套餐',198,'套餐类','热厨部'],['鸭肠','火锅食材',38,'内脏类','冷厨部'],['蟹棒','火锅食材',32,'火锅食材类','热厨部']],
     cities: ['北京','上海','成都','杭州','深圳'],
   },
   t002: {
     name: '西贝莜面餐饮', type: '直营', tenantId: 't002',
     stores: [['西贝莜面村(三里屯店)','BJ001','北京'],['西贝莜面村(国贸店)','BJ002','北京'],['西贝莜面村(南京西路店)','SH001','上海'],['西贝莜面村(万象城店)','SZ001','深圳'],['西贝莜面村(太古里店)','CD001','成都']],
-    dishes: [['招牌羊排','主菜',128],['牛肉莜面','主食',38],['黄馍馍','主食',18],['手抓饭','主食',48],['羊蝎子','主菜',98],['驴肉黄面','主食',42],['羊肉串','小食',25],['酸奶','饮品',15]],
+    dishes: [['招牌羊排','主菜',128,'主菜类','热厨部'],['牛肉莜面','主食',38,'主食类','热厨部'],['黄馍馍','主食',18,'主食类','热厨部'],['手抓饭','主食',48,'主食类','面点部'],['羊蝎子','主菜',98,'主菜类','热厨部'],['驴肉黄面','主食',42,'主食类','热厨部'],['羊肉串','小食',25,'小食类','热厨部'],['酸奶','饮品',15,'饮品类','热厨部']],
     cities: ['北京','上海','深圳','成都','西安'],
   },
   t003: {
     name: '老乡鸡连锁', type: '加盟为主', tenantId: 't003',
     stores: [['老乡鸡(南京西路店)','SH001','上海'],['老乡鸡(淮海路店)','SH002','上海'],['老乡鸡(徐汇店)','SH003','上海'],['老乡鸡(合肥政务区店)','HF001','合肥'],['老乡鸡(武汉光谷店)','WH001','武汉']],
-    dishes: [['招牌土鸡汤','主菜',38],['香辣鸡腿饭','套餐',32],['农家小炒肉','小炒',28],['土豆烧鸡','主菜',35],['梅菜扣肉饭','套餐',30],['老母鸡汤面','主食',25],['卤蛋','小食',3],['豆腐脑','早餐',8]],
+    dishes: [['招牌土鸡汤','主菜',38,'主菜类','热厨部'],['香辣鸡腿饭','套餐',32,'套餐类','热厨部'],['农家小炒肉','小炒',28,'小炒类','热厨部'],['土豆烧鸡','主菜',35,'主菜类','热厨部'],['梅菜扣肉饭','套餐',30,'套餐类','热厨部'],['老母鸡汤面','主食',25,'主食类','热厨部'],['卤蛋','小食',3,'小食类','热厨部'],['豆腐脑','早餐',8,'早餐类','热厨部']],
     cities: ['上海','合肥','武汉','南京','杭州'],
   },
   t004: {
     name: '外婆家餐饮', type: '直营', tenantId: 't004',
     stores: [['外婆家(来福士店)','SH001','上海'],['外婆家(西湖银泰店)','HZ001','杭州'],['外婆家(龙湖时代店)','CD001','成都'],['外婆家(万象天地店)','SZ001','深圳'],['外婆家(新天地店)','SH002','上海']],
-    dishes: [['东坡肘子','主菜',98],['龙井虾仁','主菜',88],['外婆红烧肉','主菜',56],['西湖醋鱼','主菜',78],['笋干老鸭煲','主菜',68],['油焖春笋','蔬菜',35],['糟溜鱼片','主菜',62],['桂花糯米藕','甜点',28]],
+    dishes: [['东坡肘子','主菜',98,'猪肉类','热厨部'],['龙井虾仁','主菜',88,'海鲜类','冷厨部'],['外婆红烧肉','主菜',56,'猪肉类','热厨部'],['西湖醋鱼','主菜',78,'鱼类','热厨部'],['笋干老鸭煲','主菜',68,'禽肉类','热厨部'],['油焖春笋','蔬菜',35,'蔬菜类','热厨部'],['糟溜鱼片','主菜',62,'鱼类','热厨部'],['桂花糯米藕','甜点',28,'甜品类','甜品部']],
     cities: ['上海','杭州','成都','深圳','北京'],
   },
   t005: {
     name: '蜀大侠火锅', type: '加盟', tenantId: 't005',
     stores: [['蜀大侠(太古里店)','CD001','成都'],['蜀大侠(IFS店)','CD002','成都'],['蜀大侠(春熙路店)','CD003','成都'],['蜀大侠(重庆解放碑店)','CQ001','重庆'],['蜀大侠(天津滨海店)','TJ001','天津']],
-    dishes: [['毛肚','火锅食材',58],['黄喉','火锅食材',48],['脑花','特色食材',35],['牛肉','火锅食材',68],['蜀大侠特调锅底','锅底',38],['鸭肠','火锅食材',45],['招牌豆花','甜点',15],['冰粉','甜点',12]],
+    dishes: [['毛肚','火锅食材',58,'内脏类','冷厨部'],['黄喉','火锅食材',48,'内脏类','冷厨部'],['脑花','特色食材',35,'特色类','冷厨部'],['牛肉','火锅食材',68,'牛肉类','热厨部'],['蜀大侠特调锅底','锅底',38,'锅底类','热厨部'],['鸭肠','火锅食材',45,'内脏类','冷厨部'],['招牌豆花','甜点',15,'甜品类','甜品部'],['冰粉','甜点',12,'甜品类','甜品部']],
     cities: ['成都','重庆','天津','武汉','西安'],
   },
 };
@@ -1770,10 +1777,16 @@ function getOrGenerateTenant(tid) {
     ]);
   });
 
-  const dishCategories = [['招牌菜','主菜',88+Math.floor(rng(1)*60)],['特色小吃','小食',28+Math.floor(rng(2)*20)],
-    ['套餐A','套餐',128+Math.floor(rng(3)*50)],['时令蔬菜','蔬菜',32+Math.floor(rng(4)*15)],
-    ['招牌汤品','汤',48+Math.floor(rng(5)*20)],['主食','主食',22+Math.floor(rng(6)*12)],
-    ['饮品','饮品',18+Math.floor(rng(7)*10)],['甜品','甜点',25+Math.floor(rng(8)*15)]];
+  const dishCategories = [
+    ['招牌菜','主菜',88+Math.floor(rng(1)*60),'特色类','热厨部'],
+    ['特色小吃','小食',28+Math.floor(rng(2)*20),'小食类','冷厨部'],
+    ['套餐A','套餐',128+Math.floor(rng(3)*50),'套餐类','热厨部'],
+    ['时令蔬菜','蔬菜',32+Math.floor(rng(4)*15),'蔬菜类','热厨部'],
+    ['招牌汤品','汤',48+Math.floor(rng(5)*20),'汤品类','热厨部'],
+    ['主食','主食',22+Math.floor(rng(6)*12),'主食类','面点部'],
+    ['饮品','饮品',18+Math.floor(rng(7)*10),'饮品类','吧台部'],
+    ['甜品','甜点',25+Math.floor(rng(8)*15),'甜品类','甜品部'],
+  ];
 
   _generatedTenants[tid] = {
     name: brandName, type: '自定义租户', tenantId: tid,
@@ -1851,7 +1864,7 @@ function mockBuildReportData(analyzeRes, userDesc) {
   const stores = tenant.stores;
   const dishes = tenant.dishes;
 
-  const rows = dishes.map(([name, cat, price], di) => {
+  const rows = dishes.map(([name, cat, price, subCat='', dept=''], di) => {
     const store = stores[di % stores.length];
     // 城市从 store 本身取（store[2] 或从 store[0] 解析），避免错位
     const city = store[2] || (store[0].match(/[(（]([^)）]+)[)）]/)?.[1]?.slice(0,2)) || (cities[di % cities.length]);
@@ -1943,6 +1956,46 @@ function mockBuildReportData(analyzeRes, userDesc) {
             return `${cat2}:销量${v.qty}/收入¥${v.amt.toFixed(0)}(${pct}%)`;
           })
           .join(' | ');
+      }
+
+      // ── 菜品小类（按名称展示）──
+      if (/菜品小类.*展示|小类.*名称|按小类|sub.*cat/i.test(h)) {
+        const subMap = {};
+        dishes.forEach(([dname, dcat, dprice, dSubCat='']) => {
+          const key = dSubCat || dcat;
+          const dQty = Math.floor(Math.random()*150)+30;
+          const dAmt = dQty * dprice;
+          if (!subMap[key]) subMap[key] = { qty: 0, amt: 0 };
+          subMap[key].qty += dQty;
+          subMap[key].amt += dAmt;
+        });
+        const totalAmt3 = Object.values(subMap).reduce((s,v)=>s+v.amt, 0);
+        return Object.entries(subMap)
+          .sort((a,b) => b[1].amt - a[1].amt)
+          .map(([k, v]) => {
+            const pct = totalAmt3 > 0 ? ((v.amt/totalAmt3)*100).toFixed(1) : '0.0';
+            return `${k}:销量${v.qty}/收入¥${v.amt.toFixed(0)}(${pct}%)`;
+          }).join(' | ');
+      }
+
+      // ── 出品部门（按名称展示）──
+      if (/出品部门.*展示|按部门|部门.*名称|dept.*name/i.test(h)) {
+        const deptMap = {};
+        dishes.forEach(([dname, dcat, dprice, dSubCat='', dDept='']) => {
+          const key = dDept || dcat;
+          const dQty = Math.floor(Math.random()*200)+50;
+          const dAmt = dQty * dprice;
+          if (!deptMap[key]) deptMap[key] = { qty: 0, amt: 0 };
+          deptMap[key].qty += dQty;
+          deptMap[key].amt += dAmt;
+        });
+        const totalAmt4 = Object.values(deptMap).reduce((s,v)=>s+v.amt, 0);
+        return Object.entries(deptMap)
+          .sort((a,b) => b[1].amt - a[1].amt)
+          .map(([k, v]) => {
+            const pct = totalAmt4 > 0 ? ((v.amt/totalAmt4)*100).toFixed(1) : '0.0';
+            return `${k}:销量${v.qty}/收入¥${v.amt.toFixed(0)}(${pct}%)`;
+          }).join(' | ');
       }
 
       // ── 渠道分列字段 ──
