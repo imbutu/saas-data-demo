@@ -1584,6 +1584,8 @@ const SEMANTIC_RULES = [
   { test: /会员[卡号]|卡号/,    field:'mmbr_card_no',   source:'order',   label:'会员卡号' },
   { test: /会员等级|等级/,      field:'mmbr_grade_name',source:'order',   label:'会员等级' },
   { test: /桌[台号名]|餐桌/,    field:'table_name',     source:'order',   label:'桌台名称' },
+  { test: /菜品大类.*收入|大类.*收入构成|按大类/, field:'cate_income_ratio', source:'dish', label:'菜品大类收入构成', derived:true },
+  { test: /品类.*收入|收入.*构成|收入占比/,      field:'cate_income_ratio', source:'dish', label:'菜品大类收入构成', derived:true },
 ];
 
 function autoSemanticMatch(header) {
@@ -1710,31 +1712,31 @@ const TENANT_TO_GROUP = Object.fromEntries(Object.entries(GROUP_NO_MAP).map(([g,
 const TENANT_DB = {
   t001: {
     name: '海底捞餐饮集团', type: '直营+加盟', tenantId: 't001',
-    stores: [['海底捞(望京店)','BJ001'],['海底捞(三里屯店)','BJ002'],['海底捞(陆家嘴店)','SH001'],['海底捞(天府广场店)','CD001'],['海底捞(西湖店)','HZ001']],
+    stores: [['海底捞(望京店)','BJ001','北京'],['海底捞(三里屯店)','BJ002','北京'],['海底捞(陆家嘴店)','SH001','上海'],['海底捞(天府广场店)','CD001','成都'],['海底捞(西湖店)','HZ001','杭州']],
     dishes: [['毛肚','火锅食材',68],['虾滑','火锅食材',42],['肥牛','火锅食材',58],['鸭血','火锅食材',28],['招牌冰激凌','甜点',12],['海底捞套餐A','套餐',198],['鸭肠','火锅食材',38],['蟹棒','火锅食材',32]],
     cities: ['北京','上海','成都','杭州','深圳'],
   },
   t002: {
     name: '西贝莜面餐饮', type: '直营', tenantId: 't002',
-    stores: [['西贝莜面村(三里屯店)','BJ001'],['西贝莜面村(国贸店)','BJ002'],['西贝莜面村(南京西路店)','SH001'],['西贝莜面村(万象城店)','SZ001'],['西贝莜面村(太古里店)','CD001']],
+    stores: [['西贝莜面村(三里屯店)','BJ001','北京'],['西贝莜面村(国贸店)','BJ002','北京'],['西贝莜面村(南京西路店)','SH001','上海'],['西贝莜面村(万象城店)','SZ001','深圳'],['西贝莜面村(太古里店)','CD001','成都']],
     dishes: [['招牌羊排','主菜',128],['牛肉莜面','主食',38],['黄馍馍','主食',18],['手抓饭','主食',48],['羊蝎子','主菜',98],['驴肉黄面','主食',42],['羊肉串','小食',25],['酸奶','饮品',15]],
     cities: ['北京','上海','深圳','成都','西安'],
   },
   t003: {
     name: '老乡鸡连锁', type: '加盟为主', tenantId: 't003',
-    stores: [['老乡鸡(南京西路店)','SH001'],['老乡鸡(淮海路店)','SH002'],['老乡鸡(徐汇店)','SH003'],['老乡鸡(合肥政务区店)','HF001'],['老乡鸡(武汉光谷店)','WH001']],
+    stores: [['老乡鸡(南京西路店)','SH001','上海'],['老乡鸡(淮海路店)','SH002','上海'],['老乡鸡(徐汇店)','SH003','上海'],['老乡鸡(合肥政务区店)','HF001','合肥'],['老乡鸡(武汉光谷店)','WH001','武汉']],
     dishes: [['招牌土鸡汤','主菜',38],['香辣鸡腿饭','套餐',32],['农家小炒肉','小炒',28],['土豆烧鸡','主菜',35],['梅菜扣肉饭','套餐',30],['老母鸡汤面','主食',25],['卤蛋','小食',3],['豆腐脑','早餐',8]],
     cities: ['上海','合肥','武汉','南京','杭州'],
   },
   t004: {
     name: '外婆家餐饮', type: '直营', tenantId: 't004',
-    stores: [['外婆家(来福士店)','SH001'],['外婆家(西湖银泰店)','HZ001'],['外婆家(龙湖时代店)','CD001'],['外婆家(万象天地店)','SZ001'],['外婆家(新天地店)','SH002']],
+    stores: [['外婆家(来福士店)','SH001','上海'],['外婆家(西湖银泰店)','HZ001','杭州'],['外婆家(龙湖时代店)','CD001','成都'],['外婆家(万象天地店)','SZ001','深圳'],['外婆家(新天地店)','SH002','上海']],
     dishes: [['东坡肘子','主菜',98],['龙井虾仁','主菜',88],['外婆红烧肉','主菜',56],['西湖醋鱼','主菜',78],['笋干老鸭煲','主菜',68],['油焖春笋','蔬菜',35],['糟溜鱼片','主菜',62],['桂花糯米藕','甜点',28]],
     cities: ['上海','杭州','成都','深圳','北京'],
   },
   t005: {
     name: '蜀大侠火锅', type: '加盟', tenantId: 't005',
-    stores: [['蜀大侠(太古里店)','CD001'],['蜀大侠(IFS店)','CD002'],['蜀大侠(春熙路店)','CD003'],['蜀大侠(重庆解放碑店)','CQ001'],['蜀大侠(天津滨海店)','TJ001']],
+    stores: [['蜀大侠(太古里店)','CD001','成都'],['蜀大侠(IFS店)','CD002','成都'],['蜀大侠(春熙路店)','CD003','成都'],['蜀大侠(重庆解放碑店)','CQ001','重庆'],['蜀大侠(天津滨海店)','TJ001','天津']],
     dishes: [['毛肚','火锅食材',58],['黄喉','火锅食材',48],['脑花','特色食材',35],['牛肉','火锅食材',68],['蜀大侠特调锅底','锅底',38],['鸭肠','火锅食材',45],['招牌豆花','甜点',15],['冰粉','甜点',12]],
     cities: ['成都','重庆','天津','武汉','西安'],
   },
@@ -1750,16 +1752,21 @@ function getOrGenerateTenant(tid) {
   const rng = (n, s=0) => { const x = Math.sin(seed+n+s)*10000; return Math.abs(x-Math.floor(x)); };
 
   const cityPools = [['北京','上海','广州','深圳','成都','杭州','武汉','南京','西安','重庆']];
+  const cityCode =  ['BJ',  'SH',  'GZ',  'SZ',  'CD',  'HZ',  'WH',  'NJ',  'XA',  'CQ' ];
   const storeSuffixes = ['旗舰店','购物中心店','广场店','步行街店','新城店','中心店','万象城店','环球港店'];
   const brandName = `商户${tid}`;
   const cityCount = 3 + (seed % 3);
-  const cities = cityPools[0].slice(seed%7, seed%7+cityCount);
+  const cityStartIdx = seed % 7;
+  const citiesSelected = cityPools[0].slice(cityStartIdx, cityStartIdx+cityCount);
+  const cityCodesSelected = cityCode.slice(cityStartIdx, cityStartIdx+cityCount);
 
-  const stores = cities.flatMap((city, ci) => {
+  // stores 数组每项：[门店名, 机构编码, 城市]，城市和编码严格绑定
+  const stores = citiesSelected.flatMap((city, ci) => {
     const n = 1 + Math.floor(rng(ci)*2);
     return Array.from({length:n},(_,i)=>[
       `${brandName}(${city}${storeSuffixes[(seed+ci*3+i)%storeSuffixes.length]})`,
-      `${city.slice(0,2).toUpperCase()}${String(ci*10+i+1).padStart(3,'0')}`
+      `${cityCodesSelected[ci]}${String(i+1).padStart(3,'0')}`,
+      city
     ]);
   });
 
@@ -1846,7 +1853,8 @@ function mockBuildReportData(analyzeRes, userDesc) {
 
   const rows = dishes.map(([name, cat, price], di) => {
     const store = stores[di % stores.length];
-    const city = cities[di % cities.length];
+    // 城市从 store 本身取（store[2] 或从 store[0] 解析），避免错位
+    const city = store[2] || (store[0].match(/[(（]([^)）]+)[)）]/)?.[1]?.slice(0,2)) || (cities[di % cities.length]);
     const totalQty = Math.floor(Math.random()*200)+50;
     const totalAmt = totalQty * price;
     const discAmt = Math.floor(totalAmt * 0.08);
