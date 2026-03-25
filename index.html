@@ -1790,7 +1790,7 @@ function getOrGenerateTenant(tid) {
 
   _generatedTenants[tid] = {
     name: brandName, type: '自定义租户', tenantId: tid,
-    stores, cities,
+    stores, cities: citiesSelected,
     dishes: dishCategories,
     _generated: true,
   };
