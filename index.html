@@ -1381,18 +1381,146 @@ async function sendMessage(text, file) {
 }
 function handleFilePick(e) { const f=e.target.files?.[0]; if(f) sendMessage(null,f); e.target.value=''; }
 
-// ===== Excel 模板建报表流程 =====
+// ===== Excel 模板建报表流程（纯前端 SheetJS，无需后端）=====
+
+// 字段映射表（Excel 中文表头 → 英文字段名）
+const HEADER_MAP = {
+  '城市':'cityName','门店名称':'storeName','机构编码':'orgCode',
+  '菜品名称':'skuName','菜品编码':'skuCode','菜品分类':'skuCategory',
+  '销量':'saleCnt','销售金额':'saleAmt','优惠金额':'discountAmt',
+  '销售收入':'incomeAmt','单点销量':'singleSaleCnt','单点销售额':'singleSaleAmt',
+  '关联售卖销量':'relSaleCnt','关联售卖销售额':'relSaleAmt',
+  '店内点餐':'inStoreSaleCnt','微信小程序':'wxMiniSaleCnt',
+  '抖音团购':'douyinSaleCnt','美团团购':'meituanSaleCnt','其他渠道':'otherSaleCnt',
+};
+const CHANNEL_LABELS = ['店内点餐','微信小程序','抖音团购','美团团购','其他渠道'];
+
+async function parseExcelFrontend(file) {
+  // 动态加载 SheetJS（CDN）
+  if (!window.XLSX) {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+  const buf = await file.arrayBuffer();
+  const wb = window.XLSX.read(buf, {type:'array'});
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const data = window.XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+  const row0 = (data[0] || []).map(v => String(v||'').trim());
+  const row1 = (data[1] || []).map(v => String(v||'').trim());
+  const hasSubHeader = row1.some(v => v==='销量' || v==='销售额');
+
+  const rawHeaders = [];
+  const detectedChannels = [];
+  if (hasSubHeader) {
+    let lastParent = '';
+    for (let i = 0; i < Math.max(row0.length, row1.length); i++) {
+      const parent = row0[i] || lastParent;
+      const child = row1[i] || '';
+      if (row0[i]) lastParent = row0[i];
+      if (CHANNEL_LABELS.includes(parent)) {
+        if (!detectedChannels.includes(parent)) detectedChannels.push(parent);
+        rawHeaders.push(child ? `${parent}_${child}` : parent);
+      } else if (child) {
+        rawHeaders.push(child);
+      } else if (parent) {
+        rawHeaders.push(parent);
+      }
+    }
+  } else {
+    row0.forEach(v => { if(v) rawHeaders.push(v); });
+  }
+
+  const uniqueHeaders = [...new Set(rawHeaders.filter(Boolean))];
+  const mapped = {}, unmapped = [];
+  uniqueHeaders.forEach(h => {
+    const m = h.match(/^(.+?)_(销量|销售额)$/);
+    if (m) {
+      const chKey = m[1].replace('店内点餐','inStore').replace('微信小程序','wxMini')
+        .replace('抖音团购','douyin').replace('美团团购','meituan').replace('其他渠道','other');
+      mapped[h] = `${chKey}${m[2]==='销量'?'SaleCnt':'SaleAmt'}`;
+    } else if (HEADER_MAP[h]) {
+      mapped[h] = HEADER_MAP[h];
+    } else {
+      unmapped.push(h);
+    }
+  });
+
+  return {
+    headers: uniqueHeaders,
+    mapped, unmapped,
+    match_rate: uniqueHeaders.length ? Object.keys(mapped).length / uniqueHeaders.length : 0,
+    isChannelTemplate: detectedChannels.length > 0,
+    channels: detectedChannels,
+    dim_covered: [],
+    dimensions: { dimensions: [] },
+  };
+}
+
+function mockBuildReportData(analyzeRes, userDesc) {
+  const { headers, isChannelTemplate, channels } = analyzeRes;
+  const cities = ['北京','上海','广州','成都','杭州'];
+  const stores = [['海底捞(望京店)','BJ001'],['西贝莜面村(三里屯店)','BJ002'],
+    ['老乡鸡(南京西路店)','SH001'],['外婆家(来福士店)','SH002'],['蜀大侠(太古里店)','CD001']];
+  const dishes = [['毛肚','火锅食材',68],['虾滑','火锅食材',42],['牛肉莜面','主食',38],
+    ['招牌羊排','主菜',128],['东坡肘子','主菜',98],['招牌烤鱼','主菜',88],
+    ['秘制红烧肉','主菜',56],['青椒炒肉','小炒',32]];
+
+  const rows = dishes.map(([name, cat, price], di) => {
+    const store = stores[di % stores.length];
+    const city = cities[di % cities.length];
+    const totalQty = Math.floor(Math.random()*200)+50;
+    const totalAmt = totalQty * price;
+    const discAmt = Math.floor(totalAmt * 0.08);
+    const channelDist = {};
+    let rem = totalQty;
+    channels.forEach((ch, i) => {
+      const ratio = [0.45,0.25,0.15,0.10,0.05][i]??0.05;
+      const qty = i===channels.length-1 ? rem : Math.floor(totalQty*ratio);
+      if (i!==channels.length-1) rem -= qty;
+      channelDist[ch] = [qty, qty*price];
+    });
+
+    return headers.map(h => {
+      if(h==='城市') return city;
+      if(h==='门店名称') return store[0];
+      if(h==='机构编码') return store[1];
+      if(h==='菜品名称') return name;
+      if(h==='菜品分类') return cat;
+      if(h==='销量') return totalQty;
+      if(h==='销售金额') return totalAmt;
+      if(h==='优惠金额') return discAmt;
+      if(h==='销售收入') return totalAmt-discAmt;
+      if(h==='单点销量') return Math.floor(totalQty*0.7);
+      if(h==='单点销售额') return Math.floor(totalAmt*0.7);
+      if(h==='关联售卖销量') return Math.floor(totalQty*0.3);
+      if(h==='关联售卖销售额') return Math.floor(totalAmt*0.3);
+      const cm = h.match(/^(.+?)_(销量|销售额)$/);
+      if(cm && channelDist[cm[1]]) return cm[2]==='销量' ? channelDist[cm[1]][0] : Math.floor(channelDist[cm[1]][1]);
+      return '-';
+    });
+  });
+
+  const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  const title = isChannelTemplate ? '菜品销售统计（自定义渠道）' : '菜品销售统计';
+  return {
+    report_title: `${title} ${dateStr}`,
+    sql: `-- Mock模式示例SQL\nSELECT city_name, store_name, sku_name, SUM(sale_cnt), SUM(sale_amt)\nFROM dwd_dish_sale_detail WHERE dt='${dateStr}'\nGROUP BY city_name, store_name, sku_name ORDER BY sale_amt DESC`,
+    columns: headers,
+    rows, total: rows.length,
+    chart_type: 'bar',
+    date_hint: dateStr,
+  };
+}
 
 async function handleExcelUpload(file, conv, token) {
-  // Step1: 调用 /api/excel/analyze
-  const fd = new FormData(); fd.append('file', file);
   let analyzeRes;
   try {
-    const resp = await fetch('/api/excel/analyze', {
-      method:'POST', headers:{Authorization:`Bearer ${token}`}, body:fd
-    });
-    if (!resp.ok) throw new Error(await resp.text());
-    analyzeRes = await resp.json();
+    analyzeRes = await parseExcelFrontend(file);
   } catch(e) {
     const errMsg = {id:++msgIdCounter,role:'assistant',content:'',error:'Excel 解析失败：'+e.message};
     conv.messages.push(errMsg);
@@ -1402,21 +1530,14 @@ async function handleExcelUpload(file, conv, token) {
 
   const matchRate = Math.round((analyzeRes.match_rate||0)*100);
   const unmappedList = analyzeRes.unmapped||[];
-  const dimCoveredList = analyzeRes.dim_covered||[];
   const mappedCount = Object.keys(analyzeRes.mapped||{}).length;
-  const hasDimensions = (analyzeRes.dimensions?.dimensions||[]).length > 0;
+  const channelTip = analyzeRes.isChannelTemplate
+    ? `<br><span style="color:#6b4fbb;font-size:12px">🔀 检测到渠道模板：${analyzeRes.channels.join('、')}</span>` : '';
 
-  // 字段识别摘要
   const mappedRows = Object.entries(analyzeRes.mapped||{}).map(([h,f]) =>
     `<tr><td style="padding:4px 10px;color:#333;font-size:13px">${escHtml(h)}</td>` +
     `<td style="padding:4px 10px;font-family:monospace;font-size:11px;color:#FF6900">${escHtml(f)}</td>` +
     `<td style="padding:4px 10px"><span style="background:#e6f9ee;color:#27ae60;padding:1px 7px;border-radius:8px;font-size:11px">✓</span></td></tr>`
-  ).join('');
-  // 维度覆盖的列 → 显示为「自定义维度」标签，不再追问
-  const dimCoveredRows = dimCoveredList.map(h =>
-    `<tr><td style="padding:4px 10px;color:#333;font-size:13px">${escHtml(h)}</td>` +
-    `<td style="padding:4px 10px;font-size:11px;color:#6b4fbb">自定义维度</td>` +
-    `<td style="padding:4px 10px"><span style="background:#ede9ff;color:#6b4fbb;padding:1px 7px;border-radius:8px;font-size:11px">🧩 维度列</span></td></tr>`
   ).join('');
   const unmappedRows = unmappedList.map(h =>
     `<tr><td style="padding:4px 10px;color:#333;font-size:13px">${escHtml(h)}</td>` +
@@ -1424,14 +1545,11 @@ async function handleExcelUpload(file, conv, token) {
     `<td style="padding:4px 10px"><span style="background:#fff3e0;color:#e67e22;padding:1px 7px;border-radius:8px;font-size:11px">待说明</span></td></tr>`
   ).join('');
 
-  // 组装 AI 的对话气泡内容
   let questionText = '';
   if (unmappedList.length > 0) {
     questionText = `有 ${unmappedList.length} 个字段暂时未能自动识别（${unmappedList.map(h=>`<b>${escHtml(h)}</b>`).join('、')}），能告诉我它们代表什么含义吗？顺便说一下需要查询哪个时间范围的数据。`;
-  } else if (hasDimensions) {
-    questionText = `字段识别完成 🎉 并且检测到了自定义维度定义，已自动解析。你想查询哪个时间范围的数据？`;
   } else {
-    questionText = `${mappedCount} 个字段全部识别成功 🎉 你想查询哪个时间范围的数据？比如「昨天」「最近7天」「本月」，或者有什么特别的过滤条件和排序要求也可以直接说。`;
+    questionText = `${mappedCount} 个字段全部识别成功 🎉${analyzeRes.isChannelTemplate ? ' 并检测到渠道分列模板，已自动解析。' : ''} 你想查询哪个时间范围的数据？比如「昨天」「最近7天」「本月」，或者有什么特别的过滤条件和排序要求也可以直接说。`;
   }
 
   const analyzeCardHtml = `
@@ -1442,11 +1560,12 @@ async function handleExcelUpload(file, conv, token) {
       <div>
         <span style="color:#fff;font-weight:600;font-size:13px">Excel 解析完成</span>
         <span style="color:rgba(255,255,255,0.8);font-size:11px;margin-left:8px">${file.name} · ${analyzeRes.headers.length} 个字段 · 识别率 ${matchRate}%</span>
+        ${channelTip}
       </div>
     </div>
     <div style="padding:10px 14px">
       <table style="width:100%;border-collapse:collapse">
-        <tbody>${mappedRows}${dimCoveredRows}${unmappedRows}</tbody>
+        <tbody>${mappedRows}${unmappedRows}</tbody>
       </table>
     </div>
   </div>
@@ -1467,7 +1586,6 @@ async function handleExcelUpload(file, conv, token) {
   // 把 analyzeRes 挂到 conv 上，等用户下一条消息触发 build-report
   conv._pendingExcel = analyzeRes;
 
-  // 聚焦输入框，提示用户直接回复
   const ta = document.getElementById('input-textarea');
   if (ta) { ta.focus(); ta.placeholder = '直接回复即可，例如：查近7天，按门店汇总...'; }
 
@@ -1482,31 +1600,17 @@ function quickReply(text) {
 
 async function submitExcelBuild(analyzeRes, userDesc) {
   const conv = getActiveConv(); if (!conv) return;
-  const token = localStorage.getItem('demo_token')||'demo';
-
   appendLoadingMsg(); setLoading(true); scrollBottom();
 
+  // Mock模式：纯前端生成示例报表数据
+  await new Promise(r => setTimeout(r, 800)); // 模拟查询延迟
   try {
-    const resp = await fetch('/api/excel/build-report', {
-      method:'POST',
-      headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
-      body:JSON.stringify({
-        headers: analyzeRes.headers,
-        mapped: analyzeRes.mapped,
-        unmapped: analyzeRes.unmapped,
-        dim_covered: analyzeRes.dim_covered || [],
-        confirmed_dimensions: (analyzeRes.dimensions?.dimensions || []),
-        user_description: userDesc||'',
-      })
-    });
-    if (!resp.ok) throw new Error(await resp.text());
-    const res = await resp.json();
+    const res = mockBuildReportData(analyzeRes, userDesc || '');
 
-    // 渲染报表结果
     const mid = ++msgIdCounter;
     const resultMsg = {
       id: mid, role:'assistant',
-      content:`报表「${res.report_title}」已生成，共 ${res.total} 条数据`,
+      content:`报表「${res.report_title}」已生成，共 ${res.total} 条数据（Mock示例数据）`,
       sql: res.sql,
       result:{columns:res.columns, rows:res.rows, total:res.total},
       reportTitle: res.report_title,
@@ -1514,7 +1618,6 @@ async function submitExcelBuild(analyzeRes, userDesc) {
       canSave: true,
       _buildResult: res,
     };
-    // 把结果缓存到 window._reportCache，供导出 CSV 使用
     if (!window._reportCache) window._reportCache = {};
     window._reportCache[mid] = res;
     conv.messages.push(resultMsg);
