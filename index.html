@@ -1347,9 +1347,7 @@ async function sendMessage(text, file) {
     const token = localStorage.getItem('demo_token')||'demo';
     let res;
     if (file && file.name.match(/\.(xlsx|xls)$/i)) {
-      // Excel 模板上传 → Step1: 字段识别
-      removeLoadingMsg();
-      setLoading(false);  // 确保 loading 状态复位，避免第二次上传被拦截
+      // Excel 模板上传 → Step1: 字段识别（loading 气泡交给 handleExcelUpload 管理）
       await handleExcelUpload(file, conv, token);
       return;
     } else if (conv._pendingExcel) {
@@ -1623,15 +1621,32 @@ function mockBuildReportData(analyzeRes, userDesc) {
 }
 
 async function handleExcelUpload(file, conv, token) {
+  // 把上层 appendLoadingMsg 的气泡替换为「识别中」状态
+  removeLoadingMsg();
+  const analyzingId = 'analyzing-' + Date.now();
+  const analyzingEl = document.createElement('div');
+  analyzingEl.id = analyzingId;
+  analyzingEl.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px 16px;background:#fff;border:1px solid #e8e8e8;border-radius:12px;margin:8px 0;max-width:320px;box-shadow:0 1px 4px rgba(0,0,0,0.06)';
+  analyzingEl.innerHTML = `
+    <span style="font-size:20px;animation:spin 1s linear infinite;display:inline-block">⏳</span>
+    <div>
+      <div style="font-size:13px;font-weight:600;color:#333">正在识别 Excel 字段...</div>
+      <div style="font-size:11px;color:#999;margin-top:2px">${escHtml(file.name)}</div>
+    </div>`;
+  document.getElementById('messages-inner').appendChild(analyzingEl);
+  scrollBottom();
+
   let analyzeRes;
   try {
     analyzeRes = await parseExcelFrontend(file);
   } catch(e) {
+    analyzingEl.remove();
     const errMsg = {id:++msgIdCounter,role:'assistant',content:'',error:'Excel 解析失败：'+e.message};
     conv.messages.push(errMsg);
     document.getElementById('messages-inner').appendChild(buildMsgEl(errMsg));
     setLoading(false); renderConvList(); scrollBottom(); return;
   }
+  analyzingEl.remove();
 
   const matchRate = Math.round((analyzeRes.match_rate||0)*100);
   const unmappedList = analyzeRes.unmapped||[];
