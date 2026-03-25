@@ -1456,6 +1456,27 @@ const HEADER_MAP = {
   '活动名称':       { field:'camp_name',         source:'campaign',label:'活动名称' },
   '优惠券':         { field:'coupon_name',       source:'campaign',label:'优惠券名称' },
   '活动优惠额':     { field:'camp_discount_amt', source:'campaign',label:'活动优惠额' },
+
+  // ── 订单聚合指标 ──
+  '订单量':         { field:'order_cnt',         source:'order',   label:'订单量' },
+  '团购订单量':     { field:'group_order_cnt',   source:'order',   label:'团购订单量' },
+  '团购订单量占比': { field:'group_order_rate',  source:'order',   label:'团购订单量占比' },
+  '营业收入':       { field:'income_amt',        source:'order',   label:'营业收入' },
+  '团购订单收入':   { field:'group_income_amt',  source:'order',   label:'团购订单收入' },
+  '团购订单收入占比':{ field:'group_income_rate', source:'order',  label:'团购订单收入占比' },
+
+  // ── 时段营业额 ──
+  '午市营业额':     { field:'lunch_biz_amt',     source:'order',   label:'午市营业额' },
+  '午市营业额占比': { field:'lunch_biz_rate',    source:'order',   label:'午市营业额占比' },
+  '晚市营业额':     { field:'dinner_biz_amt',    source:'order',   label:'晚市营业额' },
+  '晚市营业额占比': { field:'dinner_biz_rate',   source:'order',   label:'晚市营业额占比' },
+
+  // ── 用餐人数 ──
+  '用餐人数':       { field:'customer_cnt',      source:'order',   label:'就餐人数' },
+  '午市用餐人数':   { field:'lunch_customer_cnt',source:'order',   label:'午市用餐人数' },
+  '午市人数占比':   { field:'lunch_customer_rate',source:'order',  label:'午市人数占比' },
+  '晚市用餐人数':   { field:'dinner_customer_cnt',source:'order',  label:'晚市用餐人数' },
+  '晚市用餐人数占比':{ field:'dinner_customer_rate',source:'order', label:'晚市用餐人数占比' },
 };
 const CHANNEL_LABELS = ['店内点餐','微信小程序','抖音团购','美团团购','其他渠道'];
 
