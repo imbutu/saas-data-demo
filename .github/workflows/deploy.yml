@@ -20,10 +20,12 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          npm install --legacy-peer-deps
+          ls node_modules/.bin/vite && echo "vite found" || echo "vite missing"
 
       - name: Build
-        run: ./node_modules/.bin/vite build
+        run: npx vite build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
