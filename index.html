@@ -1416,68 +1416,139 @@ function handleFilePick(e) { const f=e.target.files?.[0]; if(f) sendMessage(null
 // ===== Excel 模板建报表流程（纯前端 SheetJS，无需后端）=====
 
 // 字段映射表（Excel 中文表头 → 英文字段名）
-// Excel 表头 → DS_SOURCES 真实字段名（label→name）的映射
-// 格式：{ '中文表头': { field: '字段名', source: '数据源key', label: '字段标签' } }
+// ─────────────────────────────────────────────────────────────
+// HEADER_MAP: Excel表头中文 → DS_SOURCES 真实字段
+// 优先级：精确匹配 > 别名匹配 > 自学习表（localStorage）> 未识别
+// ─────────────────────────────────────────────────────────────
 const HEADER_MAP = {
-  // ── 门店维度 ──
+  // ══ 门店/维度 ══
   '城市':           { field:'city_name',        source:'store',   label:'城市' },
-  '门店名称':       { field:'poi_name',          source:'store',   label:'门店名称' },
-  '机构编码':       { field:'org_code',          source:'store',   label:'机构编码' },
-  '门店ID':         { field:'poi_id',            source:'store',   label:'门店ID' },
+  '市别':           { field:'city_name',        source:'store',   label:'城市' },
+  '城市名称':       { field:'city_name',        source:'store',   label:'城市' },
+  '门店名称':       { field:'poi_name',         source:'store',   label:'门店名称' },
+  '门店':           { field:'poi_name',         source:'store',   label:'门店名称' },
+  '机构编码':       { field:'org_code',         source:'store',   label:'机构编码' },
+  '门店ID':         { field:'poi_id',           source:'order',   label:'门店ID' },
+  '租户ID':         { field:'tenant_id',        source:'order',   label:'租户ID' },
 
-  // ── 菜品维度 ──
-  '菜品名称':       { field:'spu_name',          source:'dish',    label:'菜品名称' },
-  '菜品编码':       { field:'spu_id',            source:'dish',    label:'菜品SPU ID' },
-  '菜品分类':       { field:'cate_name',         source:'dish',    label:'菜品分类' },
-  'SKU名称':        { field:'sku_name',          source:'dish',    label:'SKU名称' },
-  'SKU编码':        { field:'sku_id',            source:'dish',    label:'菜品SKU ID' },
+  // ══ 日期/时间 ══
+  '营业日期':       { field:'biz_datekey',      source:'order',   label:'营业日期' },
+  '分区日期':       { field:'partition_date',   source:'order',   label:'分区日期' },
+  '结算日期':       { field:'stlmnt_datekey',   source:'order',   label:'结算日期' },
+  '下单时间':       { field:'order_time',       source:'order',   label:'下单时间' },
+  '结账时间':       { field:'checkout_time',    source:'order',   label:'结账时间' },
 
-  // ── 菜品指标 ──
-  '销量':           { field:'sku_cnt',           source:'dish',    label:'数量' },
-  '销售金额':       { field:'sku_total_amt',     source:'dish',    label:'菜品小计' },
-  '优惠金额':       { field:'sku_discount_amt',  source:'dish',    label:'菜品优惠' },
-  '销售收入':       { field:'sku_income_amt',    source:'dish',    label:'菜品实收' },
-  '成本':           { field:'sku_cost_amt',      source:'dish',    label:'菜品成本' },
+  // ══ 订单金额指标 ══
+  '营业额':         { field:'biz_amt',          source:'order',   label:'营业额' },
+  '订单金额':       { field:'order_amt',        source:'order',   label:'订单金额' },
+  '营业收入':       { field:'income_amt',       source:'order',   label:'营业收入' },
+  '支付金额':       { field:'pay_amt',          source:'order',   label:'支付金额' },
+  '优惠金额':       { field:'discount_amt',     source:'order',   label:'优惠金额' },
+  '折扣金额':       { field:'discount_amt',     source:'order',   label:'优惠金额' },
 
-  // ── 订单维度/指标 ──
-  '营业额':         { field:'biz_amt',           source:'order',   label:'营业额' },
-  '订单金额':       { field:'order_amt',         source:'order',   label:'订单金额' },
-  '支付金额':       { field:'pay_amt',           source:'order',   label:'支付金额' },
-  '就餐人数':       { field:'customer_cnt',      source:'order',   label:'就餐人数' },
-  '营业日期':       { field:'biz_datekey',       source:'order',   label:'营业日期' },
-  '订单来源':       { field:'order_source_enum', source:'order',   label:'订单来源' },
+  // ══ 订单量（聚合衍生字段）══
+  '订单量':         { field:'order_cnt',        source:'order',   label:'订单量',    derived:true },
+  '订单数':         { field:'order_cnt',        source:'order',   label:'订单量',    derived:true },
+  '订单笔数':       { field:'order_cnt',        source:'order',   label:'订单量',    derived:true },
+  '团购订单量':     { field:'group_order_cnt',  source:'order',   label:'团购订单量',derived:true },
+  '团购订单数':     { field:'group_order_cnt',  source:'order',   label:'团购订单量',derived:true },
+  '团购订单量占比': { field:'group_order_rate', source:'order',   label:'团购订单量占比',derived:true },
+  '团购订单收入':   { field:'group_income_amt', source:'order',   label:'团购订单收入',derived:true },
+  '团购订单收入占比':{ field:'group_income_rate',source:'order',  label:'团购订单收入占比',derived:true },
 
-  // ── 支付维度 ──
-  '支付方式':       { field:'pay_type_name',     source:'payment', label:'支付方式' },
-  '支付笔数':       { field:'pay_cnt',           source:'payment', label:'支付笔数' },
-  '实收金额':       { field:'actual_amt',        source:'payment', label:'实收金额' },
+  // ══ 时段指标（衍生）══
+  '午市营业额':     { field:'lunch_biz_amt',    source:'order',   label:'午市营业额',derived:true },
+  '午市营业额占比': { field:'lunch_biz_rate',   source:'order',   label:'午市营业额占比',derived:true },
+  '晚市营业额':     { field:'dinner_biz_amt',   source:'order',   label:'晚市营业额',derived:true },
+  '晚市营业额占比': { field:'dinner_biz_rate',  source:'order',   label:'晚市营业额占比',derived:true },
 
-  // ── 营销维度 ──
-  '活动名称':       { field:'camp_name',         source:'campaign',label:'活动名称' },
-  '优惠券':         { field:'coupon_name',       source:'campaign',label:'优惠券名称' },
-  '活动优惠额':     { field:'camp_discount_amt', source:'campaign',label:'活动优惠额' },
+  // ══ 用餐人数（多别名）══
+  '就餐人数':       { field:'customer_cnt',     source:'order',   label:'就餐人数' },
+  '用餐人数':       { field:'customer_cnt',     source:'order',   label:'就餐人数' },
+  '客流量':         { field:'customer_cnt',     source:'order',   label:'就餐人数' },
+  '客流':           { field:'customer_cnt',     source:'order',   label:'就餐人数' },
+  '午市用餐人数':   { field:'lunch_customer_cnt',source:'order',  label:'午市用餐人数',derived:true },
+  '午市人数占比':   { field:'lunch_customer_rate',source:'order', label:'午市人数占比',derived:true },
+  '晚市用餐人数':   { field:'dinner_customer_cnt',source:'order', label:'晚市用餐人数',derived:true },
+  '晚市用餐人数占比':{ field:'dinner_customer_rate',source:'order',label:'晚市用餐人数占比',derived:true },
 
-  // ── 订单聚合指标 ──
-  '订单量':         { field:'order_cnt',         source:'order',   label:'订单量' },
-  '团购订单量':     { field:'group_order_cnt',   source:'order',   label:'团购订单量' },
-  '团购订单量占比': { field:'group_order_rate',  source:'order',   label:'团购订单量占比' },
-  '营业收入':       { field:'income_amt',        source:'order',   label:'营业收入' },
-  '团购订单收入':   { field:'group_income_amt',  source:'order',   label:'团购订单收入' },
-  '团购订单收入占比':{ field:'group_income_rate', source:'order',  label:'团购订单收入占比' },
+  // ══ 订单属性 ══
+  '订单来源':       { field:'order_source_enum',source:'order',   label:'订单来源' },
+  '订单分类':       { field:'order_category_enum',source:'order', label:'订单分类' },
+  '销售渠道':       { field:'sale_channel_enum',source:'order',   label:'销售渠道' },
+  '业务类型':       { field:'biz_type_enum',    source:'order',   label:'业务类型' },
+  '订单状态':       { field:'order_status_enum',source:'order',   label:'订单状态' },
+  '是否会员':       { field:'is_mmbr',          source:'order',   label:'是否会员' },
+  '会员卡号':       { field:'mmbr_card_no',     source:'order',   label:'会员卡号' },
+  '会员等级':       { field:'mmbr_grade_name',  source:'order',   label:'会员等级' },
+  '收银员ID':       { field:'cashier_id',       source:'order',   label:'收银员ID' },
+  '桌台ID':         { field:'table_id',         source:'order',   label:'桌台ID' },
+  '桌台名称':       { field:'table_name',       source:'order',   label:'桌台名称' },
+  '是否有退款':     { field:'has_refund',       source:'order',   label:'是否有退款' },
+  '退款类型':       { field:'refund_type_enum', source:'order',   label:'退款类型' },
 
-  // ── 时段营业额 ──
-  '午市营业额':     { field:'lunch_biz_amt',     source:'order',   label:'午市营业额' },
-  '午市营业额占比': { field:'lunch_biz_rate',    source:'order',   label:'午市营业额占比' },
-  '晚市营业额':     { field:'dinner_biz_amt',    source:'order',   label:'晚市营业额' },
-  '晚市营业额占比': { field:'dinner_biz_rate',   source:'order',   label:'晚市营业额占比' },
+  // ══ 菜品维度 ══
+  '菜品名称':       { field:'spu_name',         source:'dish',    label:'菜品名称' },
+  '菜品编码':       { field:'spu_id',           source:'dish',    label:'菜品SPU ID' },
+  '菜品SPU ID':     { field:'spu_id',           source:'dish',    label:'菜品SPU ID' },
+  'SKU名称':        { field:'sku_name',         source:'dish',    label:'SKU名称' },
+  '菜品SKU ID':     { field:'sku_id',           source:'dish',    label:'菜品SKU ID' },
+  '菜品分类':       { field:'cate_name',        source:'dish',    label:'菜品分类' },
+  '菜品行名称':     { field:'item_name',        source:'dish',    label:'菜品行名称' },
+  '单价':           { field:'sku_price',        source:'dish',    label:'单价' },
+  '数量':           { field:'sku_cnt',          source:'dish',    label:'数量' },
+  '销量':           { field:'sku_cnt',          source:'dish',    label:'数量' },
+  '菜品小计':       { field:'sku_total_amt',    source:'dish',    label:'菜品小计' },
+  '销售金额':       { field:'sku_total_amt',    source:'dish',    label:'菜品小计' },
+  '菜品优惠':       { field:'sku_discount_amt', source:'dish',    label:'菜品优惠' },
+  '菜品实收':       { field:'sku_income_amt',   source:'dish',    label:'菜品实收' },
+  '销售收入':       { field:'sku_income_amt',   source:'dish',    label:'菜品实收' },
+  '菜品成本':       { field:'sku_cost_amt',     source:'dish',    label:'菜品成本' },
+  '成本':           { field:'sku_cost_amt',     source:'dish',    label:'菜品成本' },
+  '分类ID':         { field:'cate_id',          source:'dish',    label:'分类ID' },
+  '是否套餐':       { field:'is_combo',         source:'dish',    label:'是否套餐' },
+  '是否赠品':       { field:'is_gift_sku',      source:'dish',    label:'是否赠品' },
+  '规格信息':       { field:'sku_specs',        source:'dish',    label:'规格信息' },
+  '退菜类型':       { field:'refund_type_enum', source:'dish',    label:'退菜类型' },
 
-  // ── 用餐人数 ──
-  '用餐人数':       { field:'customer_cnt',      source:'order',   label:'就餐人数' },
-  '午市用餐人数':   { field:'lunch_customer_cnt',source:'order',   label:'午市用餐人数' },
-  '午市人数占比':   { field:'lunch_customer_rate',source:'order',  label:'午市人数占比' },
-  '晚市用餐人数':   { field:'dinner_customer_cnt',source:'order',  label:'晚市用餐人数' },
-  '晚市用餐人数占比':{ field:'dinner_customer_rate',source:'order', label:'晚市用餐人数占比' },
+  // ══ 支付维度 ══
+  '结账方式':       { field:'pay_mode_name',    source:'payment', label:'结账方式' },
+  '支付方式':       { field:'pay_mode_name',    source:'payment', label:'结账方式' },
+  '结账方式ID':     { field:'pay_mode_id',      source:'payment', label:'结账方式ID' },
+  '结账方式类型':   { field:'second_category_name',source:'payment',label:'结账方式类型' },
+  '收入金额':       { field:'income_amt',       source:'payment', label:'收入金额' },
+  '实收金额':       { field:'income_amt',       source:'payment', label:'收入金额' },
+  '服务费收入':     { field:'service_fee_income',source:'payment',label:'服务费收入' },
+  '服务费减免':     { field:'service_fee_discount',source:'payment',label:'服务费减免' },
+  '券核销张数':     { field:'used_cnt',         source:'payment', label:'券核销张数' },
+  '券面值':         { field:'face_value',       source:'payment', label:'券面值' },
+  '支付状态':       { field:'pay_status_enum',  source:'payment', label:'支付状态' },
+  '支付方向':       { field:'pay_direction',    source:'payment', label:'支付方向' },
+  '就餐模式':       { field:'meal_mode_enum',   source:'payment', label:'就餐模式' },
+  '结账来源':       { field:'checkout_source_enum',source:'payment',label:'结账来源' },
+  '是否跨结算日':   { field:'is_over_stlmnt_date',source:'payment',label:'是否跨结算日' },
+  '渠道收入':       { field:'channel_income',   source:'payment', label:'渠道收入' },
+  '商户收入':       { field:'merchant_income',  source:'payment', label:'商户收入' },
+  '支付笔数':       { field:'pay_cnt',          source:'payment', label:'支付笔数', derived:true },
+
+  // ══ 营销维度 ══
+  '活动名称':       { field:'camp_name',        source:'campaign',label:'活动名称' },
+  '活动ID':         { field:'cmpgn_id',         source:'campaign',label:'活动ID' },
+  '活动编号':       { field:'cmpgn_no',         source:'campaign',label:'活动编号' },
+  '活动描述':       { field:'cmpgn_desc',       source:'campaign',label:'活动描述' },
+  '优惠展示名称':   { field:'cmpgn_show_mode_name',source:'campaign',label:'优惠展示名称' },
+  '活动类型':       { field:'cmpgn_type_enum',  source:'campaign',label:'活动类型' },
+  '活动模式':       { field:'cmpgn_mode_enum',  source:'campaign',label:'活动模式' },
+  '优惠对象':       { field:'cmpgn_target_enum',source:'campaign',label:'优惠对象' },
+  '优惠收入':       { field:'cmpgn_income',     source:'campaign',label:'优惠收入' },
+  '优惠费用':       { field:'cmpgn_expense',    source:'campaign',label:'优惠费用' },
+  '优惠券':         { field:'coupon_name',      source:'campaign',label:'优惠券名称' },
+  '活动优惠额':     { field:'camp_discount_amt',source:'campaign',label:'活动优惠额' },
+  '使用次数':       { field:'used_times',       source:'campaign',label:'使用次数' },
+  '是否已支付':     { field:'is_paid',          source:'campaign',label:'是否已支付' },
+  '优惠状态':       { field:'cmpgn_status',     source:'campaign',label:'优惠状态' },
 };
+
 const CHANNEL_LABELS = ['店内点餐','微信小程序','抖音团购','美团团购','其他渠道'];
 
 async function parseExcelFrontend(file) {
@@ -1521,6 +1592,10 @@ async function parseExcelFrontend(file) {
   }
 
   const uniqueHeaders = [...new Set(rawHeaders.filter(Boolean))];
+  // 从 localStorage 读取用户自学习的字段映射
+  let learnedMap = {};
+  try { learnedMap = JSON.parse(localStorage.getItem('header_learned_map') || '{}'); } catch(e){}
+
   const mapped = {}, unmapped = [];
   uniqueHeaders.forEach(h => {
     const m = h.match(/^(.+?)_(销量|销售额)$/);
@@ -1531,6 +1606,9 @@ async function parseExcelFrontend(file) {
       mapped[h] = { field: `${chKey}_${m[2]==='销量'?'sale_cnt':'sale_amt'}`, source:'dish', label: h };
     } else if (HEADER_MAP[h]) {
       mapped[h] = HEADER_MAP[h];
+    } else if (learnedMap[h]) {
+      // 命中自学习映射
+      mapped[h] = { ...learnedMap[h], learned: true };
     } else {
       unmapped.push(h);
     }
@@ -1738,11 +1816,21 @@ async function handleExcelUpload(file, conv, token) {
         <span style="background:${srcColor}18;color:${srcColor};padding:1px 6px;border-radius:8px;font-size:10px">${srcLabel}</span>
       </td></tr>`;
   }).join('');
-  const unmappedRows = unmappedList.map(h =>
-    `<tr><td style="padding:4px 10px;color:#333;font-size:13px">${escHtml(h)}</td>` +
-    `<td style="padding:4px 10px;color:#bbb;font-size:12px">—</td>` +
-    `<td style="padding:4px 10px"><span style="background:#fff3e0;color:#e67e22;padding:1px 7px;border-radius:8px;font-size:11px">待说明</span></td></tr>`
-  ).join('');
+  const unmappedRows = unmappedList.map(h => {
+    const inputId = 'learn-' + encodeURIComponent(h).replace(/%/g,'x');
+    return `<tr>
+      <td style="padding:4px 10px;color:#333;font-size:13px">${escHtml(h)}</td>
+      <td style="padding:4px 10px">
+        <input id="${inputId}" type="text" placeholder="填含义或=字段名，如：客流量" data-header="${escHtml(h)}"
+          style="width:160px;padding:3px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;outline:none"
+          onfocus="this.style.borderColor='#FF6900'" onblur="this.style.borderColor='#ddd'"
+          onkeydown="if(event.key==='Enter'){learnFieldMapping(this)}" />
+        <button onclick="learnFieldMapping(document.getElementById('${inputId}'))"
+          style="margin-left:4px;padding:3px 8px;background:#FF6900;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer">学习</button>
+      </td>
+      <td style="padding:4px 10px"><span style="background:#fff3e0;color:#e67e22;padding:1px 7px;border-radius:8px;font-size:11px">待说明</span></td>
+    </tr>`;
+  }).join('');
 
   let questionText = '';
   if (unmappedList.length > 0) {
@@ -1789,6 +1877,51 @@ async function handleExcelUpload(file, conv, token) {
   if (ta) { ta.focus(); ta.placeholder = '直接回复即可，例如：查近7天，按门店汇总...'; }
 
   setLoading(false); renderConvList(); scrollBottom();
+}
+
+// 字段自学习：把用户输入的含义存入 localStorage，下次上传自动识别
+function learnFieldMapping(inputEl) {
+  const header = inputEl.getAttribute('data-header');
+  const val = inputEl.value.trim();
+  if (!val) return;
+
+  // 支持两种输入：
+  // 1. "客流量" → 在 HEADER_MAP 里找对应字段
+  // 2. "=customer_cnt" 或 "customer_cnt" → 直接映射到指定字段名
+  let fieldInfo = null;
+
+  if (val.startsWith('=')) {
+    // 直接指定字段名
+    const fieldName = val.slice(1).trim();
+    fieldInfo = { field: fieldName, source: 'order', label: header };
+  } else {
+    // 在 HEADER_MAP 里找别名
+    const found = Object.entries(HEADER_MAP).find(([k,v]) =>
+      k === val || (typeof v === 'object' && v.label === val)
+    );
+    if (found) {
+      fieldInfo = { ...found[1], learnedFrom: val };
+    } else {
+      // 找不到就直接用输入值当字段名
+      fieldInfo = { field: val.toLowerCase().replace(/\s+/g,'_'), source: 'order', label: header };
+    }
+  }
+
+  // 写 localStorage
+  let learned = {};
+  try { learned = JSON.parse(localStorage.getItem('header_learned_map') || '{}'); } catch(e){}
+  learned[header] = fieldInfo;
+  localStorage.setItem('header_learned_map', JSON.stringify(learned));
+
+  // 更新行 UI
+  const tr = inputEl.closest('tr');
+  if (tr) {
+    tr.cells[1].innerHTML = `<span style="font-family:monospace;font-size:11px;color:#FF6900">${escHtml(fieldInfo.field)}</span>`;
+    tr.cells[2].innerHTML = `<span style="background:#e6f9ee;color:#27ae60;padding:1px 7px;border-radius:8px;font-size:11px">✓ 已学习</span>`;
+  }
+
+  // 显示 toast
+  showToast('✅ 已记住：' + header + ' → ' + fieldInfo.field + '（下次自动识别）', '#27ae60');
 }
 
 // 快捷回复（点击建议标签直接发送）
