@@ -1551,6 +1551,67 @@ const HEADER_MAP = {
 
 const CHANNEL_LABELS = ['店内点餐','微信小程序','抖音团购','美团团购','其他渠道'];
 
+// ─────────────────────────────────────────────────────────────
+// 自动语义匹配：对未识别字段，按关键词权重打分，自动推断最近字段
+// ─────────────────────────────────────────────────────────────
+const SEMANTIC_RULES = [
+  // [正则或关键词数组, fieldInfo, 最低分]
+  { test: /营业额|GMV|流水/, field:'biz_amt',           source:'order',   label:'营业额' },
+  { test: /营业收入|净收入|实收/, field:'income_amt',    source:'order',   label:'营业收入' },
+  { test: /订单[量数笔]|单量/,  field:'order_cnt',      source:'order',   label:'订单量',   derived:true },
+  { test: /团购.*[量数]|[量数].*团购/, field:'group_order_cnt', source:'order', label:'团购订单量', derived:true },
+  { test: /团购.*[额收入]|[额收入].*团购/, field:'group_income_amt', source:'order', label:'团购订单收入', derived:true },
+  { test: /团购.*占比|占比.*团购/, field:'group_income_rate', source:'order', label:'团购占比', derived:true },
+  { test: /午[市餐].*[额收]/, field:'lunch_biz_amt',    source:'order',   label:'午市营业额', derived:true },
+  { test: /午[市餐].*占比/,   field:'lunch_biz_rate',   source:'order',   label:'午市营业额占比', derived:true },
+  { test: /晚[市餐].*[额收]/, field:'dinner_biz_amt',   source:'order',   label:'晚市营业额', derived:true },
+  { test: /晚[市餐].*占比/,   field:'dinner_biz_rate',  source:'order',   label:'晚市营业额占比', derived:true },
+  { test: /用餐|就餐|客流|人数|人次|来客/, field:'customer_cnt', source:'order', label:'就餐人数' },
+  { test: /午[市餐].*[人客]/, field:'lunch_customer_cnt', source:'order', label:'午市用餐人数', derived:true },
+  { test: /晚[市餐].*[人客]/, field:'dinner_customer_cnt', source:'order', label:'晚市用餐人数', derived:true },
+  { test: /午[市餐].*人.*占比|午.*占比/, field:'lunch_customer_rate', source:'order', label:'午市人数占比', derived:true },
+  { test: /晚[市餐].*人.*占比|晚.*占比/, field:'dinner_customer_rate', source:'order', label:'晚市用餐人数占比', derived:true },
+  { test: /支付[额金]|实付/, field:'pay_amt',           source:'order',   label:'支付金额' },
+  { test: /优惠[额金]|减免|折扣/, field:'discount_amt', source:'order',   label:'优惠金额' },
+  { test: /菜品名|菜名|SKU名|品名/, field:'spu_name',   source:'dish',    label:'菜品名称' },
+  { test: /菜品分类|品类|分类/,  field:'cate_name',     source:'dish',    label:'菜品分类' },
+  { test: /销[售卖]量|数量|件数/, field:'sku_cnt',       source:'dish',    label:'数量' },
+  { test: /销[售卖][额金]|菜品金额/, field:'sku_total_amt', source:'dish', label:'菜品小计' },
+  { test: /城市|市场|区域/,     field:'city_name',      source:'store',   label:'城市' },
+  { test: /门店[名称]|店名|店铺/, field:'poi_name',      source:'store',   label:'门店名称' },
+  { test: /结账方式|支付方式|付款方式/, field:'pay_mode_name', source:'payment', label:'结账方式' },
+  { test: /活动名[称]|营销活动/, field:'camp_name',      source:'campaign',label:'活动名称' },
+  { test: /会员[卡号]|卡号/,    field:'mmbr_card_no',   source:'order',   label:'会员卡号' },
+  { test: /会员等级|等级/,      field:'mmbr_grade_name',source:'order',   label:'会员等级' },
+  { test: /桌[台号名]|餐桌/,    field:'table_name',     source:'order',   label:'桌台名称' },
+];
+
+function autoSemanticMatch(header) {
+  // 1. 先查 localStorage 自学习表
+  try {
+    const learned = JSON.parse(localStorage.getItem('header_learned_map') || '{}');
+    if (learned[header]) return { ...learned[header], autoMatched: true, confidence: 'learned' };
+  } catch(e){}
+
+  // 2. 语义规则匹配
+  for (const rule of SEMANTIC_RULES) {
+    if (rule.test.test(header)) {
+      return { field: rule.field, source: rule.source, label: rule.label,
+               derived: rule.derived || false, autoMatched: true, confidence: 'semantic' };
+    }
+  }
+
+  // 3. 模糊字符串包含匹配（遍历 HEADER_MAP key）
+  const h = header.replace(/[（(）)\s]/g,'');
+  for (const [k, v] of Object.entries(HEADER_MAP)) {
+    const k2 = k.replace(/[（(）)\s]/g,'');
+    if (h.includes(k2) || k2.includes(h)) {
+      return { ...v, autoMatched: true, confidence: 'fuzzy' };
+    }
+  }
+  return null;
+}
+
 async function parseExcelFrontend(file) {
   // 动态加载 SheetJS（CDN）
   if (!window.XLSX) {
@@ -1610,7 +1671,13 @@ async function parseExcelFrontend(file) {
       // 命中自学习映射
       mapped[h] = { ...learnedMap[h], learned: true };
     } else {
-      unmapped.push(h);
+      // 自动语义匹配
+      const auto = autoSemanticMatch(h);
+      if (auto) {
+        mapped[h] = auto;
+      } else {
+        unmapped.push(h);
+      }
     }
   });
 
@@ -1803,34 +1870,32 @@ async function handleExcelUpload(file, conv, token) {
 
   const SOURCE_COLORS = {dish:'#6b4fbb',order:'#1a73e8',payment:'#0a8a5c',campaign:'#c0392b',store:'#e67e22'};
   const SOURCE_NAMES  = {dish:'菜品',order:'订单',payment:'支付',campaign:'营销',store:'门店'};
+  const CONFIDENCE_LABELS = { exact:'精确', learned:'已学习', semantic:'语义', fuzzy:'模糊' };
   const mappedRows = Object.entries(analyzeRes.mapped||{}).map(([h,info]) => {
     const fieldName = typeof info === 'object' ? info.field : info;
-    const src = typeof info === 'object' ? info.source : 'dish';
+    const src = typeof info === 'object' ? (info.source||'order') : 'order';
     const srcColor = SOURCE_COLORS[src] || '#888';
     const srcLabel = SOURCE_NAMES[src] || src;
+    const isAuto = typeof info === 'object' && info.autoMatched;
+    const conf = typeof info === 'object' ? info.confidence : null;
+    const confLabel = conf ? (CONFIDENCE_LABELS[conf]||conf) : null;
     return `<tr>
       <td style="padding:4px 10px;color:#333;font-size:13px">${escHtml(h)}</td>
       <td style="padding:4px 10px;font-family:monospace;font-size:11px;color:#FF6900">${escHtml(fieldName)}</td>
       <td style="padding:4px 10px">
-        <span style="background:#e6f9ee;color:#27ae60;padding:1px 6px;border-radius:8px;font-size:11px;margin-right:4px">✓</span>
+        <span style="background:#e6f9ee;color:#27ae60;padding:1px 6px;border-radius:8px;font-size:11px;margin-right:4px">${isAuto?'≈':'✓'}</span>
         <span style="background:${srcColor}18;color:${srcColor};padding:1px 6px;border-radius:8px;font-size:10px">${srcLabel}</span>
+        ${isAuto&&confLabel?`<span style="margin-left:3px;background:#f0f0f0;color:#999;padding:1px 5px;border-radius:8px;font-size:10px">${confLabel}</span>`:''}
       </td></tr>`;
   }).join('');
-  const unmappedRows = unmappedList.map(h => {
-    const inputId = 'learn-' + encodeURIComponent(h).replace(/%/g,'x');
-    return `<tr>
-      <td style="padding:4px 10px;color:#333;font-size:13px">${escHtml(h)}</td>
-      <td style="padding:4px 10px">
-        <input id="${inputId}" type="text" placeholder="填含义或=字段名，如：客流量" data-header="${escHtml(h)}"
-          style="width:160px;padding:3px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;outline:none"
-          onfocus="this.style.borderColor='#FF6900'" onblur="this.style.borderColor='#ddd'"
-          onkeydown="if(event.key==='Enter'){learnFieldMapping(this)}" />
-        <button onclick="learnFieldMapping(document.getElementById('${inputId}'))"
-          style="margin-left:4px;padding:3px 8px;background:#FF6900;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer">学习</button>
-      </td>
-      <td style="padding:4px 10px"><span style="background:#fff3e0;color:#e67e22;padding:1px 7px;border-radius:8px;font-size:11px">待说明</span></td>
-    </tr>`;
-  }).join('');
+  // 真正无法识别的字段（极少数）— 仅显示「未识别」，不需要用户操作
+  const unmappedRows = unmappedList.map(h =>
+    `<tr>
+      <td style="padding:4px 10px;color:#bbb;font-size:13px">${escHtml(h)}</td>
+      <td style="padding:4px 10px;color:#bbb;font-size:12px">—</td>
+      <td style="padding:4px 10px"><span style="background:#f5f5f5;color:#bbb;padding:1px 7px;border-radius:8px;font-size:11px">未识别</span></td>
+    </tr>`
+  ).join('');
 
   let questionText = '';
   if (unmappedList.length > 0) {
