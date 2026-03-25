@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>收入优惠统计</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif; background: #f5f5f5; color: #333; font-size: 13px; }
+
+    /* 顶部标题栏 */
+    .top-bar {
+      background: #fff; padding: 12px 20px; border-bottom: 1px solid #f0f0f0;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .top-title { font-size: 15px; font-weight: 700; color: #1a1a2e; }
+    .top-actions { display: flex; align-items: center; gap: 16px; }
+    .top-action-btn {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 12px; color: #666; cursor: pointer; transition: color 0.15s;
+      background: none; border: none; padding: 0;
+    }
+    .top-action-btn:hover { color: #FF6900; }
+    .top-action-btn .icon { font-size: 13px; }
+
+    /* 筛选区 */
+    .filter-panel { background: #fff; padding: 0 20px; border-bottom: 1px solid #f0f0f0; }
+
+    /* 维度选择行 */
+    .dim-row {
+      display: flex; align-items: center; gap: 0;
+      padding: 10px 0; border-bottom: 1px solid #f7f7f7;
+      flex-wrap: wrap;
+    }
+    .dim-label { color: #888; font-size: 12px; margin-right: 10px; white-space: nowrap; flex-shrink: 0; }
+    .dim-checkbox { display: flex; align-items: center; gap: 4px; margin-right: 14px; cursor: pointer; font-size: 12px; color: #444; white-space: nowrap; }
+    .dim-checkbox input[type=checkbox] { accent-color: #FF6900; width: 13px; height: 13px; cursor: pointer; }
+
+    /* 统计周期行 */
+    .period-row { display: flex; align-items: center; gap: 0; padding: 9px 0; border-bottom: 1px solid #f7f7f7; }
+    .radio-item { display: flex; align-items: center; gap: 4px; margin-right: 18px; cursor: pointer; font-size: 12px; color: #444; }
+    .radio-item input[type=radio] { accent-color: #FF6900; width: 13px; height: 13px; cursor: pointer; }
+
+    /* 收起维度按钮 */
+    .collapse-btn { margin-left: auto; color: #FF6900; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .collapse-btn:hover { opacity: 0.8; }
+
+    /* 查询条件行 */
+    .query-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 0; flex-wrap: wrap;
+    }
+    .query-row + .query-row { padding-top: 0; }
+
+    /* Tab 切换（营业日期/营业月份） */
+    .date-tabs { display: flex; border: 1px solid #FF6900; border-radius: 4px; overflow: hidden; flex-shrink: 0; }
+    .date-tab { padding: 5px 14px; font-size: 12px; cursor: pointer; background: #fff; color: #FF6900; border: none; transition: all 0.15s; }
+    .date-tab.active { background: #FF6900; color: #fff; }
+
+    /* 日期输入 */
+    .date-range { display: flex; align-items: center; gap: 6px; }
+    .date-input { padding: 5px 10px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 12px; color: #333; outline: none; width: 100px; }
+    .date-input:focus { border-color: #FF6900; }
+    .date-sep { color: #999; font-size: 12px; }
+    .date-icon { color: #bbb; font-size: 14px; cursor: pointer; }
+
+    /* Select */
+    .filter-select { padding: 5px 10px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 12px; color: #333; outline: none; background: #fff; cursor: pointer; min-width: 80px; }
+    .filter-select:focus { border-color: #FF6900; }
+    .filter-label { font-size: 12px; color: #555; white-space: nowrap; }
+
+    /* 高级按钮 */
+    .btn-advanced { padding: 5px 12px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 12px; color: #444; background: #fff; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+    .btn-advanced:hover { border-color: #FF6900; color: #FF6900; }
+
+    /* 查询/重置 */
+    .btn-query { padding: 6px 20px; background: #FF6900; color: #fff; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+    .btn-query:hover { opacity: 0.88; }
+    .btn-reset { padding: 6px 14px; background: #fff; color: #555; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+    .btn-reset:hover { border-color: #FF6900; color: #FF6900; }
+
+    /* 高级筛选展开 */
+    .advanced-panel {
+      background: #fafafa; border-top: 1px solid #f0f0f0;
+      padding: 10px 0 4px; display: none; flex-wrap: wrap; gap: 10px; align-items: center;
+    }
+    .advanced-panel.show { display: flex; }
+    .adv-item { display: flex; align-items: center; gap: 6px; }
+
+    /* 数据说明 */
+    .data-tip { padding: 7px 20px; font-size: 11px; color: #888; background: #fff; border-bottom: 1px solid #f0f0f0; }
+    .data-tip a { color: #FF6900; text-decoration: none; }
+    .data-tip a:hover { text-decoration: underline; }
+
+    /* 表格区 */
+    .table-wrap { padding: 0 20px 20px; }
+    .table-container { background: #fff; border-radius: 8px; border: 1px solid #f0f0f0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04); margin-top: 14px; }
+    .table-toolbar { padding: 10px 14px; display: flex; align-items: center; justify-content: flex-end; border-bottom: 1px solid #f7f7f7; gap: 8px; }
+    .tbl-tool-btn { padding: 4px 12px; border: 1px solid #e8e8e8; border-radius: 5px; font-size: 12px; color: #666; background: #fff; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+    .tbl-tool-btn:hover { border-color: #FF6900; color: #FF6900; }
+
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: #fafafa; }
+    th { padding: 10px 12px; text-align: left; font-weight: 600; color: #555; font-size: 12px; border-bottom: 1px solid #f0f0f0; white-space: nowrap; user-select: none; }
+    th .sort-icon { font-size: 10px; color: #ccc; margin-left: 3px; cursor: pointer; }
+    th .sort-icon:hover { color: #FF6900; }
+    td { padding: 10px 12px; color: #444; border-bottom: 1px solid #f7f7f7; font-size: 12px; white-space: nowrap; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafcff; }
+    .total-row td { background: #fafafa; font-weight: 600; color: #333; border-top: 1px solid #f0f0f0; }
+    .total-row:hover td { background: #fafafa; }
+
+    /* 空数据 */
+    .empty-cell { text-align: center; padding: 48px 0; color: #bbb; }
+    .empty-cell .empty-icon { font-size: 36px; margin-bottom: 10px; }
+    .empty-cell .empty-text { font-size: 13px; }
+
+    /* 分页 */
+    .pagination { display: flex; align-items: center; justify-content: flex-end; padding: 12px 14px; gap: 6px; border-top: 1px solid #f0f0f0; }
+    .page-btn { width: 30px; height: 30px; border: 1px solid #d9d9d9; border-radius: 5px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; background: #fff; color: #555; }
+    .page-btn:hover, .page-btn.active { border-color: #FF6900; color: #FF6900; }
+    .page-btn.active { background: #fff7f0; }
+    .page-total { font-size: 12px; color: #999; margin-right: 8px; }
+    .page-size-select { padding: 4px 8px; border: 1px solid #d9d9d9; border-radius: 5px; font-size: 12px; color: #555; outline: none; }
+
+    /* 数字对齐 */
+    .num { text-align: right; }
+    .dash { color: #bbb; }
+
+    /* 加载状态 */
+    .loading-overlay { display: flex; align-items: center; justify-content: center; padding: 48px; gap: 8px; color: #999; font-size: 13px; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { width: 16px; height: 16px; border: 2px solid #f0f0f0; border-top-color: #FF6900; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  </style>
+</head>
+<body>
+
+<!-- 顶部标题栏 -->
+<div class="top-bar">
+  <div class="top-title">收入优惠统计</div>
+  <div class="top-actions">
+    <button class="top-action-btn" onclick="toggleFullscreen()">
+      <span class="icon">⛶</span> 全屏显示
+    </button>
+    <button class="top-action-btn" onclick="openFieldSettings()">
+      <span class="icon">⚙️</span> 字段设置
+    </button>
+    <button class="top-action-btn" onclick="exportData()">
+      <span class="icon">⬇️</span> 导出
+    </button>
+    <button class="top-action-btn" onclick="toggleFavorite(this)">
+      <span class="icon" id="fav-icon">☆</span> 设为常用
+    </button>
+    <button class="top-action-btn" onclick="showHelp()">
+      <span class="icon">ℹ️</span> 报表说明
+    </button>
+  </div>
+</div>
+
+<!-- 筛选面板 -->
+<div class="filter-panel">
+
+  <!-- 门店区域维度 -->
+  <div class="dim-row">
+    <span class="dim-label">门店区域：</span>
+    <label class="dim-checkbox"><input type="checkbox" id="dim-province"/> 省份</label>
+    <label class="dim-checkbox"><input type="checkbox" id="dim-city"/> 城市</label>
+    <label class="dim-checkbox"><input type="checkbox" id="dim-region"/> 地区</label>
+    <label class="dim-checkbox"><input type="checkbox" id="dim-group"/> 门店分组</label>
+    <label class="dim-checkbox"><input type="checkbox" id="dim-org"/> 组织机构</label>
+    <label class="dim-checkbox"><input type="checkbox" id="dim-orgcode"/> 门店机构编码</label>
+    <label class="dim-checkbox"><input type="checkbox" id="dim-merchant"/> 商户号</label>
+    <label class="dim-checkbox"><input type="checkbox" id="dim-name" checked/> 门店名称</label>
+  </div>
+
+  <!-- 统计周期 -->
+  <div class="dim-row">
+    <span class="dim-label">统计周期：</span>
+    <label class="radio-item"><input type="radio" name="period" value="day" checked/> 日</label>
+    <label class="radio-item"><input type="radio" name="period" value="month"/> 月</label>
+    <label class="radio-item"><input type="radio" name="period" value="custom"/> 自定义周期</label>
+  </div>
+
+  <!-- 结账方式维度 -->
+  <div class="dim-row">
+    <span class="dim-label">结账方式：</span>
+    <label class="radio-item"><input type="radio" name="payment-dim" value="type" checked/> 结账方式</label>
+    <label class="radio-item"><input type="radio" name="payment-dim" value="code"/> 结账方式+编码</label>
+    <label class="radio-item"><input type="radio" name="payment-dim" value="category"/> 结账方式类型</label>
+    <span class="collapse-btn" onclick="toggleDims(this)">
+      <span id="dim-arrow">▲</span> 收起维度
+    </span>
+  </div>
+
+  <!-- 统计维度 -->
+  <div class="dim-row" id="stat-dim-row">
+    <span class="dim-label">统计维度：</span>
+    <label class="dim-checkbox"><input type="checkbox" id="dim-cashier"/> 收银员</label>
+  </div>
+
+  <!-- 主查询行 -->
+  <div class="query-row">
+    <!-- 日期 Tab -->
+    <div class="date-tabs">
+      <button class="date-tab active" id="tab-date" onclick="switchDateTab('date')">营业日期</button>
+      <button class="date-tab" id="tab-month" onclick="switchDateTab('month')">营业月份</button>
+    </div>
+    <!-- 日期范围 -->
+    <div class="date-range" id="date-range-row">
+      <input type="date" class="date-input" id="date-start" value="2026-03-19"/>
+      <span class="date-sep">—</span>
+      <input type="date" class="date-input" id="date-end" value="2026-03-19"/>
+    </div>
+    <!-- 月份 -->
+    <div class="date-range" id="month-range-row" style="display:none">
+      <input type="month" class="date-input" id="month-val" value="2026-03" style="width:120px"/>
+    </div>
+    <!-- 门店 -->
+    <span class="filter-label">门店：</span>
+    <select class="filter-select" id="sel-store" style="min-width:90px">
+      <option>全部</option>
+      <option>周记餐厅（总店）</option>
+      <option>周记餐厅（分店1）</option>
+    </select>
+    <!-- 高级按钮 -->
+    <button class="btn-advanced" id="btn-advanced" onclick="toggleAdvanced()">
+      高级 <span id="adv-arrow">▼</span>
+    </button>
+    <!-- 查询/重置 -->
+    <button class="btn-query" onclick="doQuery()">🔍 查询</button>
+    <button class="btn-reset" onclick="doReset()">↺ 重置</button>
+  </div>
+
+  <!-- 高级筛选 -->
+  <div class="advanced-panel" id="advanced-panel">
+    <div class="adv-item">
+      <span class="filter-label">收入类型：</span>
+      <select class="filter-select" id="sel-income-type"><option>全部</option><option>现金</option><option>电子支付</option><option>挂账</option></select>
+    </div>
+    <div class="adv-item">
+      <span class="filter-label">结账方式：</span>
+      <select class="filter-select" id="sel-payment"><option>全部</option><option>微信</option><option>支付宝</option><option>现金</option><option>美团</option></select>
+    </div>
+    <div class="adv-item">
+      <span class="filter-label">订单分类：</span>
+      <select class="filter-select" id="sel-order-cat"><option>全部</option><option>堂食</option><option>外卖</option><option>预订</option></select>
+    </div>
+    <div class="adv-item">
+      <span class="filter-label">订单来源：</span>
+      <select class="filter-select" id="sel-order-src"><option>全部</option><option>POS机</option><option>小程序</option><option>美团外卖</option></select>
+    </div>
+    <div class="adv-item">
+      <span class="filter-label">收银员：</span>
+      <select class="filter-select" id="sel-cashier"><option>全部</option><option>张三</option><option>李四</option></select>
+    </div>
+  </div>
+
+</div>
+
+<!-- 数据说明 -->
+<div class="data-tip">
+  查询时间范围：基于各门店营业结算时间分别查询汇总。<a href="#" onclick="return false">点击查看详情</a>
+</div>
+
+<!-- 表格区 -->
+<div class="table-wrap">
+  <div class="table-container">
+    <div class="table-toolbar">
+      <button class="tbl-tool-btn" onclick="exportData()">⬇️ 导出</button>
+      <button class="tbl-tool-btn" onclick="openFieldSettings()">⚙️ 字段设置</button>
+    </div>
+    <div id="table-content">
+      <table id="data-table">
+        <thead>
+          <tr>
+            <th style="width:50px">序号</th>
+            <th>门店名称</th>
+            <th>营业日期 <span class="sort-icon" onclick="sortBy('date')">⇅</span></th>
+            <th>结账方式类型</th>
+            <th>结账方式</th>
+            <th>类型</th>
+            <th>券核销张数 <span title="统计期内核销的优惠券张数">ℹ️</span></th>
+            <th class="num">支付次数 <span class="sort-icon" onclick="sortBy('pay_count')">⇅</span></th>
+            <th class="num">营业额(元) <span class="sort-icon" onclick="sortBy('revenue')">⇅</span></th>
+            <th class="num">优惠金额(元) <span class="sort-icon" onclick="sortBy('discount')">⇅</span></th>
+            <th class="num">营业收入(元) <span class="sort-icon" onclick="sortBy('income')">⇅</span></th>
+            <th style="width:36px"><span style="font-size:14px;color:#bbb;cursor:pointer" title="字段设置">⚙</span></th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <tr>
+            <td colspan="12" class="empty-cell">
+              <div class="empty-icon">📭</div>
+              <div class="empty-text">暂无数据</div>
+            </td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr class="total-row" id="total-row">
+            <td colspan="7">合计</td>
+            <td class="num dash" id="total-pay">--</td>
+            <td class="num dash" id="total-revenue">--</td>
+            <td class="num dash" id="total-discount">--</td>
+            <td class="num dash" id="total-income">--</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="pagination" id="pagination" style="display:none">
+      <span class="page-total" id="page-total"></span>
+      <button class="page-btn" onclick="goPage(-1)">‹</button>
+      <button class="page-btn active" id="page-cur">1</button>
+      <button class="page-btn" onclick="goPage(1)">›</button>
+      <select class="page-size-select" onchange="changePageSize(this.value)">
+        <option value="20">20条/页</option>
+        <option value="50">50条/页</option>
+        <option value="100">100条/页</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== 状态 =====
+let isAdvancedOpen = false;
+let isDimsExpanded = true;
+let currentPage = 1;
+let pageSize = 20;
+let tableData = [];
+let sortKey = null;
+let sortDir = 'asc';
+
+// ===== 日期 Tab =====
+function switchDateTab(tab) {
+  document.getElementById('tab-date').classList.toggle('active', tab==='date');
+  document.getElementById('tab-month').classList.toggle('active', tab==='month');
+  document.getElementById('date-range-row').style.display = tab==='date' ? 'flex' : 'none';
+  document.getElementById('month-range-row').style.display = tab==='month' ? 'flex' : 'none';
+}
+
+// ===== 高级筛选 =====
+function toggleAdvanced() {
+  isAdvancedOpen = !isAdvancedOpen;
+  document.getElementById('advanced-panel').classList.toggle('show', isAdvancedOpen);
+  document.getElementById('adv-arrow').textContent = isAdvancedOpen ? '▲' : '▼';
+  document.getElementById('btn-advanced').style.color = isAdvancedOpen ? '#FF6900' : '';
+  document.getElementById('btn-advanced').style.borderColor = isAdvancedOpen ? '#FF6900' : '';
+}
+
+// ===== 收起/展开维度 =====
+function toggleDims(btn) {
+  isDimsExpanded = !isDimsExpanded;
+  document.getElementById('stat-dim-row').style.display = isDimsExpanded ? '' : 'none';
+  document.getElementById('dim-arrow').textContent = isDimsExpanded ? '▲' : '▼';
+  btn.querySelector('span:last-child') && (btn.lastChild.textContent = (isDimsExpanded ? ' 收起维度' : ' 展开维度'));
+  btn.innerHTML = `<span id="dim-arrow">${isDimsExpanded?'▲':'▼'}</span> ${isDimsExpanded?'收起维度':'展开维度'}`;
+}
+
+// ===== 查询 =====
+function doQuery() {
+  const start = document.getElementById('date-start').value;
+  const end = document.getElementById('date-end').value;
+  const store = document.getElementById('sel-store').value;
+  showLoading();
+  // 模拟异步查询
+  setTimeout(() => {
+    tableData = generateMockData(start, end, store);
+    renderTable();
+  }, 600);
+}
+
+function doReset() {
+  document.getElementById('date-start').value = '2026-03-19';
+  document.getElementById('date-end').value = '2026-03-19';
+  document.getElementById('sel-store').value = '全部';
+  document.getElementById('sel-income-type').value = '全部';
+  document.getElementById('sel-payment').value = '全部';
+  document.getElementById('sel-order-cat').value = '全部';
+  document.getElementById('sel-order-src').value = '全部';
+  document.getElementById('sel-cashier').value = '全部';
+  tableData = [];
+  renderTable();
+}
+
+// ===== Mock 数据生成 =====
+function generateMockData(start, end, store) {
+  const stores = store === '全部' ? ['周记餐厅（总店）', '周记餐厅（分店1）'] : [store];
+  const paymentTypes = [
+    { type:'电子支付', method:'微信支付', category:'微信' },
+    { type:'电子支付', method:'支付宝', category:'支付宝' },
+    { type:'电子支付', method:'美团支付', category:'美团' },
+    { type:'现金', method:'现金', category:'现金' },
+  ];
+  const rows = [];
+  let idx = 1;
+  const startD = new Date(start), endD = new Date(end);
+  for (let d = new Date(startD); d <= endD; d.setDate(d.getDate()+1)) {
+    const dateStr = d.toISOString().slice(0,10).replace(/-/g,'/');
+    stores.forEach(s => {
+      paymentTypes.forEach(p => {
+        const payCount = Math.floor(Math.random()*80)+10;
+        const avgOrder = Math.floor(Math.random()*60)+40;
+        const revenue = payCount * avgOrder;
+        const discount = Math.floor(revenue * (Math.random()*0.12+0.02));
+        const coupons = Math.floor(discount / 8);
+        rows.push({
+          idx: idx++, store:s, date:dateStr,
+          paymentCat: p.type, payment: p.method, category: p.category,
+          coupons, payCount,
+          revenue: revenue.toFixed(2),
+          discount: discount.toFixed(2),
+          income: (revenue - discount).toFixed(2)
+        });
+      });
+    });
+  }
+  return rows;
+}
+
+// ===== 排序 =====
+function sortBy(key) {
+  if (sortKey === key) { sortDir = sortDir==='asc' ? 'desc' : 'asc'; }
+  else { sortKey = key; sortDir = 'asc'; }
+  const keyMap = { date:'date', pay_count:'payCount', revenue:'revenue', discount:'discount', income:'income' };
+  const k = keyMap[key];
+  tableData.sort((a,b) => {
+    const av = parseFloat(a[k])||0, bv = parseFloat(b[k])||0;
+    return sortDir==='asc' ? av-bv : bv-av;
+  });
+  renderTable();
+}
+
+// ===== 渲染表格 =====
+function renderTable() {
+  const tbody = document.getElementById('table-body');
+  const pagination = document.getElementById('pagination');
+  const totalRow = document.getElementById('total-row');
+
+  if (!tableData.length) {
+    tbody.innerHTML = `<tr><td colspan="12" class="empty-cell"><div class="empty-icon">📭</div><div class="empty-text">暂无数据</div></td></tr>`;
+    pagination.style.display = 'none';
+    ['total-pay','total-revenue','total-discount','total-income'].forEach(id => { document.getElementById(id).textContent='--'; document.getElementById(id).className='num dash'; });
+    return;
+  }
+
+  // 计算合计
+  let totalPay=0, totalRev=0, totalDisc=0, totalInc=0, totalCoup=0;
+  tableData.forEach(r => {
+    totalPay += r.payCount;
+    totalRev += parseFloat(r.revenue);
+    totalDisc += parseFloat(r.discount);
+    totalInc += parseFloat(r.income);
+    totalCoup += r.coupons;
+  });
+  document.getElementById('total-pay').textContent = totalPay.toLocaleString();
+  document.getElementById('total-pay').className = 'num';
+  document.getElementById('total-revenue').textContent = totalRev.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  document.getElementById('total-revenue').className = 'num';
+  document.getElementById('total-discount').textContent = totalDisc.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  document.getElementById('total-discount').className = 'num';
+  document.getElementById('total-income').textContent = totalInc.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  document.getElementById('total-income').className = 'num';
+
+  // 分页
+  const total = tableData.length;
+  const totalPages = Math.ceil(total/pageSize);
+  if (currentPage > totalPages) currentPage = 1;
+  const start = (currentPage-1)*pageSize;
+  const pageData = tableData.slice(start, start+pageSize);
+
+  tbody.innerHTML = '';
+  pageData.forEach((r,i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${start+i+1}</td>
+      <td>${escHtml(r.store)}</td>
+      <td>${r.date}</td>
+      <td>${escHtml(r.paymentCat)}</td>
+      <td>${escHtml(r.payment)}</td>
+      <td>${escHtml(r.category)}</td>
+      <td class="num">${r.coupons}</td>
+      <td class="num">${r.payCount.toLocaleString()}</td>
+      <td class="num">${fmt(r.revenue)}</td>
+      <td class="num" style="color:#cf1322">${fmt(r.discount)}</td>
+      <td class="num" style="font-weight:500">${fmt(r.income)}</td>
+      <td></td>`;
+    tbody.appendChild(tr);
+  });
+
+  // 分页控件
+  pagination.style.display = 'flex';
+  document.getElementById('page-total').textContent = `共 ${total} 条`;
+  document.getElementById('page-cur').textContent = currentPage;
+}
+
+function fmt(v) { return parseFloat(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function showLoading() {
+  document.getElementById('table-body').innerHTML = `<tr><td colspan="12"><div class="loading-overlay"><div class="spinner"></div> 查询中...</div></td></tr>`;
+  document.getElementById('pagination').style.display='none';
+}
+
+// ===== 分页 =====
+function goPage(delta) {
+  const total = tableData.length;
+  const totalPages = Math.ceil(total/pageSize);
+  currentPage = Math.max(1, Math.min(totalPages, currentPage+delta));
+  renderTable();
+}
+function changePageSize(val) { pageSize=parseInt(val); currentPage=1; renderTable(); }
+
+// ===== 其他操作 =====
+function toggleFullscreen() {
+  if (!document.fullscreenElement) { document.documentElement.requestFullscreen?.(); }
+  else { document.exitFullscreen?.(); }
+}
+function toggleFavorite(btn) {
+  const icon = document.getElementById('fav-icon');
+  if (icon.textContent==='☆') { icon.textContent='★'; icon.style.color='#FF6900'; }
+  else { icon.textContent='☆'; icon.style.color=''; }
+}
+function exportData() {
+  if (!tableData.length) { alert('暂无数据可导出，请先查询'); return; }
+  const headers = ['序号','门店名称','营业日期','结账方式类型','结账方式','类型','券核销张数','支付次数','营业额(元)','优惠金额(元)','营业收入(元)'];
+  const rows = tableData.map((r,i) => [i+1,r.store,r.date,r.paymentCat,r.payment,r.category,r.coupons,r.payCount,r.revenue,r.discount,r.income]);
+  const csv = [headers,...rows].map(row=>row.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`收入优惠统计_${new Date().toLocaleDateString('zh-CN')}.csv`; a.click();
+}
+function openFieldSettings() { alert('字段设置：可拖拽排序，勾选显示/隐藏字段（功能开发中）'); }
+function showHelp() { alert('报表说明\n\n收入优惠统计报表展示各门店在统计周期内，按结账方式分类的营业收入与优惠金额汇总。\n\n· 营业额 = 所有订单的消费金额合计\n· 优惠金额 = 折扣、券核销等减免金额\n· 营业收入 = 营业额 - 优惠金额'); }
+
+// 初始化：默认加载今日数据
+window.addEventListener('DOMContentLoaded', () => { doQuery(); });
+</script>
+</body>
+</html>

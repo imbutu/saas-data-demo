@@ -1,0 +1,2124 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta http-equiv="Expires" content="0"/>
+  <title>AI 取数助手</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+      background: #f5f5f5; color: #333;
+      display: flex; height: 100vh; overflow: hidden;
+    }
+
+    /* ===== 图标导航栏 ===== */
+    .nav-rail {
+      width: 56px; flex-shrink: 0;
+      background: #111827;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 12px 0;
+      border-right: 1px solid rgba(255,255,255,0.05);
+      z-index: 10;
+    }
+    .nav-logo { font-size: 22px; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.08); width: 100%; text-align: center; }
+    .nav-item {
+      width: 42px; height: 42px; border-radius: 10px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      cursor: pointer; margin-bottom: 6px; transition: background 0.15s;
+      color: rgba(255,255,255,0.4); font-size: 18px; position: relative;
+    }
+    .nav-item span.nav-label { font-size: 9px; margin-top: 2px; line-height: 1; color: rgba(255,255,255,0.3); }
+    .nav-item:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.75); }
+    .nav-item:hover span.nav-label { color: rgba(255,255,255,0.5); }
+    .nav-item.active { background: rgba(255,105,0,0.2); color: #FF6900; }
+    .nav-item.active span.nav-label { color: #FF6900; }
+    .nav-spacer { flex: 1; }
+    .nav-footer { padding-bottom: 8px; }
+
+    /* ===== 二级面板 ===== */
+    .panel { width: 220px; flex-shrink: 0; background: #1a1a2e; display: flex; flex-direction: column; border-right: 1px solid rgba(255,255,255,0.06); }
+    .panel-header { padding: 16px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .panel-title { color: #fff; font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+    .btn-new {
+      width: 100%; padding: 8px 12px; background: rgba(255,105,0,0.15);
+      border: 1px dashed rgba(255,105,0,0.45); border-radius: 8px; color: #FF6900;
+      font-size: 12px; font-weight: 500; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 5px; transition: background 0.15s;
+    }
+    .btn-new:hover { background: rgba(255,105,0,0.28); }
+    .panel-list { flex: 1; overflow-y: auto; padding: 6px 8px 8px; }
+    .panel-list::-webkit-scrollbar { width: 3px; }
+    .panel-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+    .panel-footer { padding: 10px; border-top: 1px solid rgba(255,255,255,0.08); }
+
+    /* 会话列表 */
+    .conv-item { padding: 9px 10px; border-radius: 8px; cursor: pointer; margin-bottom: 2px; transition: background 0.15s; }
+    .conv-item:hover { background: rgba(255,255,255,0.08); }
+    .conv-item.active { background: rgba(255,255,255,0.13); }
+    .conv-title { color: rgba(255,255,255,0.75); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.5; }
+    .conv-item.active .conv-title { color: #fff; }
+
+    /* 报表列表 */
+    .report-item { padding: 10px; border-radius: 8px; cursor: pointer; margin-bottom: 4px; transition: background 0.15s; display: flex; align-items: flex-start; gap: 9px; }
+    .report-item:hover { background: rgba(255,255,255,0.08); }
+    .report-item.active { background: rgba(255,105,0,0.18); }
+    .report-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .report-info { min-width: 0; }
+    .report-name { color: rgba(255,255,255,0.8); font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .report-item.active .report-name { color: #fff; }
+    .report-desc { color: rgba(255,255,255,0.3); font-size: 10px; margin-top: 2px; }
+    .report-tag { display: inline-block; margin-top: 4px; padding: 1px 6px; border-radius: 4px; font-size: 9px; background: rgba(255,105,0,0.2); color: #FF6900; }
+
+    /* 下载中心面板菜单 */
+    .dl-menu-item {
+      padding: 10px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 3px;
+      display: flex; align-items: center; gap: 8px;
+      color: rgba(255,255,255,0.6); font-size: 13px; transition: background 0.15s;
+    }
+    .dl-menu-item:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.9); }
+    .dl-menu-item.active { background: rgba(255,105,0,0.2); color: #FF6900; font-weight: 500; }
+    .dl-menu-icon { font-size: 16px; }
+
+    /* ===== Section 容器 ===== */
+    .section { display: none; flex: 1; flex-direction: column; min-width: 0; overflow: hidden; }
+    .section.active { display: flex; }
+
+    /* ===== 报表主内容 ===== */
+    .report-main { flex: 1; overflow-y: auto; padding: 28px 32px; }
+  .ds-cat-label { font-size:11px; color:#aaa; padding:8px 10px 4px; letter-spacing:0.5px; text-transform:uppercase; }
+    .page-header { margin-bottom: 24px; }
+    .page-title { font-size: 20px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+    .page-sub { font-size: 13px; color: #999; }
+    .report-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .report-card { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #f0f0f0; box-shadow: 0 1px 6px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.15s; }
+    .report-card:hover { border-color: #FF6900; box-shadow: 0 4px 16px rgba(255,105,0,0.12); transform: translateY(-1px); }
+    .report-card-icon { font-size: 28px; margin-bottom: 12px; }
+    .report-card-name { font-size: 15px; font-weight: 600; color: #1a1a2e; margin-bottom: 6px; }
+    .report-card-desc { font-size: 12px; color: #999; line-height: 1.5; margin-bottom: 12px; }
+    .report-card-footer { display: flex; align-items: center; justify-content: space-between; }
+    .report-card-tag { padding: 3px 10px; border-radius: 20px; font-size: 11px; background: #fff7f0; color: #FF6900; font-weight: 500; }
+    .report-card-action { font-size: 12px; color: #FF6900; font-weight: 500; }
+
+    /* ===== 下载中心主内容 ===== */
+    .dl-main { flex: 1; overflow-y: auto; padding: 28px 32px; }
+
+    /* 信息提示条 */
+    .info-bar { background: #fffbe6; border: 1px solid #ffe58f; border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #7b5e00; margin-bottom: 20px; display: flex; align-items: flex-start; gap: 8px; }
+    .info-bar-icon { flex-shrink: 0; }
+
+    /* 操作栏 */
+    .action-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .action-bar-left { display: flex; gap: 8px; }
+    .btn-primary { padding: 7px 16px; background: #FF6900; color: #fff; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; font-weight: 500; transition: opacity 0.15s; }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-default { padding: 7px 14px; background: #fff; color: #555; border: 1px solid #d9d9d9; border-radius: 8px; font-size: 13px; cursor: pointer; transition: all 0.15s; }
+    .btn-default:hover { border-color: #FF6900; color: #FF6900; }
+    .btn-icon { width: 32px; height: 32px; background: #fff; border: 1px solid #d9d9d9; border-radius: 8px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .btn-icon:hover { border-color: #FF6900; background: #fff7f0; }
+
+    /* 通用表格 */
+    .data-table-wrap { background: #fff; border-radius: 10px; border: 1px solid #f0f0f0; overflow: hidden; box-shadow: 0 1px 6px rgba(0,0,0,0.04); }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .data-table thead tr { background: #fafafa; }
+    .data-table th { padding: 11px 14px; text-align: left; font-weight: 600; color: #666; font-size: 12px; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+    .data-table td { padding: 12px 14px; color: #444; border-bottom: 1px solid #f7f7f7; vertical-align: middle; }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: #fafcff; }
+    .data-table .no-data { text-align: center; color: #bbb; padding: 40px; font-size: 13px; }
+
+    /* 状态 badge */
+    .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+    .badge-running { background: #e6f7ff; color: #1677ff; }
+    .badge-paused  { background: #fff7e6; color: #d46b08; }
+    .badge-done    { background: #f6ffed; color: #389e0d; }
+    .badge-failed  { background: #fff1f0; color: #cf1322; }
+    .badge-closed  { background: #f5f5f5; color: #8c8c8c; }
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+    /* 操作链接 */
+    .tbl-action { color: #FF6900; cursor: pointer; font-size: 12px; margin-right: 10px; white-space: nowrap; }
+    .tbl-action:hover { text-decoration: underline; }
+    .tbl-action.danger { color: #cf1322; }
+    .tbl-action.muted { color: #999; }
+    .tbl-action.muted:hover { color: #555; }
+
+    /* 任务频率 */
+    .freq-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; background: #f5f5f5; color: #888; }
+
+    /* Tab 切换（下载中心内部） */
+    .tab-bar { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid #f0f0f0; }
+    .tab-item { padding: 10px 20px; font-size: 14px; color: #888; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color 0.15s; }
+    .tab-item:hover { color: #FF6900; }
+    .tab-item.active { color: #FF6900; border-bottom-color: #FF6900; font-weight: 600; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* 弹窗 */
+    .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; display: flex; align-items: center; justify-content: center; }
+    .modal { background: #fff; border-radius: 12px; width: 480px; max-width: 96vw; box-shadow: 0 8px 40px rgba(0,0,0,0.18); overflow: hidden; }
+    .modal-header { padding: 16px 20px 12px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; }
+    .modal-title { font-size: 15px; font-weight: 600; color: #1a1a2e; }
+    .modal-close { font-size: 18px; cursor: pointer; color: #bbb; background: none; border: none; line-height: 1; }
+    .modal-close:hover { color: #666; }
+    .modal-body { padding: 20px; }
+    .modal-footer { padding: 12px 20px; border-top: 1px solid #f0f0f0; display: flex; justify-content: flex-end; gap: 8px; }
+    .form-row { margin-bottom: 16px; }
+    .form-label { font-size: 13px; color: #555; font-weight: 500; margin-bottom: 6px; }
+    .form-input { width: 100%; padding: 8px 12px; border: 1px solid #d9d9d9; border-radius: 8px; font-size: 13px; outline: none; transition: border-color 0.15s; }
+    .form-input:focus { border-color: #FF6900; box-shadow: 0 0 0 2px rgba(255,105,0,0.08); }
+    .form-select { width: 100%; padding: 8px 12px; border: 1px solid #d9d9d9; border-radius: 8px; font-size: 13px; outline: none; background: #fff; cursor: pointer; }
+    .form-select:focus { border-color: #FF6900; }
+    .form-hint { font-size: 11px; color: #aaa; margin-top: 4px; }
+
+    /* ===== 会话聊天区 ===== */
+    .messages-wrap { flex: 1; overflow-y: auto; padding: 24px 0; }
+    .messages-wrap::-webkit-scrollbar { width: 4px; }
+    .messages-wrap::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+    .messages-inner { max-width: 760px; margin: 0 auto; padding: 0 24px; }
+    .empty-state { text-align: center; padding-top: 56px; animation: fadeUp 0.3s ease; }
+    .empty-icon { font-size: 48px; margin-bottom: 14px; }
+    .empty-title { font-size: 20px; font-weight: 700; color: #1a1a2e; margin-bottom: 7px; }
+    .empty-sub { font-size: 13px; color: #999; margin-bottom: 30px; }
+    .quick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; max-width: 620px; margin: 0 auto; }
+    .quick-btn { padding: 11px 12px; border-radius: 10px; border: 1px solid #e8e8e8; background: #fff; color: #444; font-size: 12px; cursor: pointer; text-align: left; line-height: 1.4; transition: all 0.15s; }
+    .quick-btn:hover { border-color: #FF6900; color: #FF6900; background: #fff7f0; }
+    .msg-row { margin-bottom: 20px; animation: fadeUp 0.2s ease; }
+    .msg-user { display: flex; justify-content: flex-end; }
+    .msg-assistant { display: flex; justify-content: flex-start; }
+    .bubble-user { max-width: 68%; background: #FF6900; color: #fff; padding: 10px 15px; border-radius: 18px 18px 4px 18px; font-size: 14px; line-height: 1.6; }
+    .file-badge { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.2); border-radius: 6px; padding: 4px 8px; margin-bottom: 5px; font-size: 11px; }
+    .msg-ai { display: flex; gap: 10px; align-items: flex-start; }
+    .ai-avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #FF6900, #ff9040); display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; margin-top: 2px; }
+    .bubble-ai { flex: 1; min-width: 0; background: #fff; border: 1px solid #f0f0f0; border-radius: 4px 16px 16px 16px; padding: 12px 16px; box-shadow: 0 1px 6px rgba(0,0,0,0.04); font-size: 14px; }
+    .ai-status { color: #52c41a; font-size: 13px; font-weight: 500; margin-bottom: 10px; }
+    .error-msg { color: #cf1322; font-size: 13px; }
+    .result-table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid #f0f0f0; margin-bottom: 10px; }
+    .result-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .result-table th { background: #fafafa; padding: 7px 11px; text-align: left; font-weight: 600; color: #666; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+    .result-table td { padding: 6px 11px; color: #444; border-bottom: 1px solid #f9f9f9; white-space: nowrap; }
+    .result-table tr:last-child td { border-bottom: none; }
+    .result-table tr:hover td { background: #fafafa; }
+    .table-more { font-size: 11px; color: #aaa; padding: 5px 11px; }
+    .sql-toggle { background: none; border: none; padding: 0; font-size: 11px; color: #bbb; cursor: pointer; display: flex; align-items: center; gap: 4px; margin-top: 8px; }
+    .sql-toggle:hover { color: #999; }
+    .sql-block { background: #1a1a2e; border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #a8ff78; overflow: auto; margin-top: 6px; max-height: 180px; line-height: 1.6; }
+    .loading-bubble { display: flex; align-items: center; gap: 4px; padding: 4px 0; }
+    .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #ccc; animation: dotFlash 1.2s infinite; }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+    .input-area { padding: 10px 24px 16px; background: #f5f5f5; }
+    .input-box { max-width: 760px; margin: 0 auto; background: #fff; border: 1px solid #e8e8e8; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s; }
+    .input-box:focus-within { border-color: #FF6900; box-shadow: 0 2px 12px rgba(255,105,0,0.1); }
+    .input-textarea { width: 100%; padding: 14px 16px 7px; border: none; outline: none; resize: none; font-size: 14px; line-height: 1.6; font-family: inherit; color: #333; background: transparent; min-height: 48px; max-height: 150px; display: block; }
+    .input-textarea::placeholder { color: #bbb; }
+    .input-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px 9px; border-top: 1px solid #f5f5f5; }
+    .toolbar-left { display: flex; align-items: center; gap: 6px; }
+    .btn-upload { padding: 5px 9px; background: none; border: 1px solid #eee; border-radius: 7px; font-size: 16px; cursor: pointer; line-height: 1; transition: all 0.15s; }
+    .btn-upload:hover { background: #fff7f0; border-color: #FF6900; }
+    .upload-hint { font-size: 11px; color: #ccc; }
+    .btn-send { padding: 7px 20px; background: linear-gradient(135deg, #FF6900, #ff8c38); color: #fff; border: none; border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .btn-send:hover { opacity: 0.9; }
+    .btn-send:disabled { background: #f0f0f0; color: #bbb; cursor: not-allowed; }
+    .input-hint { text-align: center; font-size: 11px; color: #ccc; margin-top: 6px; max-width: 760px; margin-left: auto; margin-right: auto; }
+    .drop-overlay { position: fixed; inset: 0; z-index: 100; background: rgba(255,105,0,0.07); border: 2px dashed #FF6900; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; color: #FF6900; pointer-events: none; }
+
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes dotFlash { 0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1); } }
+  </style>
+</head>
+<body>
+
+<!-- ===== 图标导航栏 ===== -->
+<nav class="nav-rail">
+  <div class="nav-logo">🍜</div>
+  <div class="nav-item active" id="nav-chat" onclick="switchSection('chat')" title="会话管理">
+    <span>💬</span><span class="nav-label">会话</span>
+  </div>
+  <div class="nav-item" id="nav-report" onclick="switchSection('report')" title="报表中心">
+    <span>📊</span><span class="nav-label">报表</span>
+  </div>
+  <div class="nav-item" id="nav-datasource" onclick="switchSection('datasource')" title="数据源">
+    <span>🗄️</span><span class="nav-label">数据源</span>
+  </div>
+  <div class="nav-item" id="nav-download" onclick="switchSection('download')" title="下载中心">
+    <span>⬇️</span><span class="nav-label">下载</span>
+  </div>
+  <div class="nav-spacer"></div>
+  <div class="nav-footer">
+    <div class="nav-item" onclick="logout()" title="退出">
+      <span style="font-size:14px">🚪</span>
+    </div>
+  </div>
+</nav>
+
+<!-- ===== 会话面板 ===== -->
+<div class="panel" id="panel-chat">
+  <div class="panel-header">
+    <div class="panel-title">会话管理</div>
+    <button class="btn-new" onclick="newConversation()">✏️ 新建对话</button>
+  </div>
+  <div class="panel-list" id="conv-list"></div>
+  <div class="panel-footer">
+    <div style="color:rgba(255,255,255,0.25);font-size:10px;text-align:center">餐饮门店</div>
+  </div>
+</div>
+
+<!-- ===== 报表面板 ===== -->
+<div class="panel" id="panel-report" style="display:none">
+  <div class="panel-header"><div class="panel-title">报表中心</div></div>
+  <div class="panel-list" style="padding:8px;">
+    <div class="dl-menu-item active" id="rmenu-mine" onclick="switchReportTab('mine')">
+      <span class="dl-menu-icon">⭐</span>我的报表
+    </div>
+    <div class="dl-menu-item" id="rmenu-system" onclick="switchReportTab('system')">
+      <span class="dl-menu-icon">📋</span>系统报表
+    </div>
+  </div>
+</div>
+
+<!-- ===== 下载中心面板 ===== -->
+<!-- ===== 数据源面板 ===== -->
+<div class="panel" id="panel-datasource" style="display:none">
+  <div class="panel-header"><div class="panel-title">数据源</div></div>
+  <div class="panel-list" style="padding:8px">
+    <div class="ds-cat-label">业务数据表</div>
+    <div class="dl-menu-item active" id="dsmenu-order" onclick="switchDsTab('order')">
+      <span class="dl-menu-icon">🧾</span>订单数据
+    </div>
+    <div class="dl-menu-item" id="dsmenu-dish" onclick="switchDsTab('dish')">
+      <span class="dl-menu-icon">🍽️</span>菜品数据
+    </div>
+    <div class="dl-menu-item" id="dsmenu-payment" onclick="switchDsTab('payment')">
+      <span class="dl-menu-icon">💳</span>支付数据
+    </div>
+    <div class="dl-menu-item" id="dsmenu-campaign" onclick="switchDsTab('campaign')">
+      <span class="dl-menu-icon">🎫</span>优惠数据
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-download" style="display:none">
+  <div class="panel-header"><div class="panel-title">下载中心</div></div>
+  <div class="panel-list" style="padding: 8px;">
+    <div class="dl-menu-item active" id="dlmenu-tasks" onclick="switchDlTab('tasks')">
+      <span class="dl-menu-icon">📋</span>导出任务
+    </div>
+    <div class="dl-menu-item" id="dlmenu-records" onclick="switchDlTab('records')">
+      <span class="dl-menu-icon">🗂️</span>导出记录
+    </div>
+  </div>
+</div>
+
+<!-- ===== 会话主内容 ===== -->
+<div class="section active" id="section-chat">
+  <div class="messages-wrap" id="messages-wrap">
+    <div class="messages-inner" id="messages-inner">
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon">🍜</div>
+        <h2 class="empty-title">有什么我能帮你查的？</h2>
+        <p class="empty-sub">支持自然语言查数，也可以上传 Excel 模板</p>
+        <div class="quick-grid" id="quick-grid"></div>
+      </div>
+    </div>
+  </div>
+  <div class="input-area">
+    <div class="input-box">
+      <textarea id="input-textarea" class="input-textarea" placeholder="询问你的数据，例如：上周每天的营业额是多少？" rows="1"></textarea>
+      <div class="input-toolbar">
+        <div class="toolbar-left">
+          <input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFilePick(event)"/>
+          <button class="btn-upload" title="上传 Excel / CSV" onclick="document.getElementById('file-input').click()">📎</button>
+          <span class="upload-hint">支持 .xlsx / .xls / .csv · 可拖拽</span>
+        </div>
+        <button class="btn-send" id="btn-send" onclick="sendMessage()" disabled>发送 ↑</button>
+      </div>
+    </div>
+    <p class="input-hint">Enter 发送 · Shift+Enter 换行</p>
+  </div>
+</div>
+
+<!-- ===== 报表主内容 ===== -->
+<div class="section" id="section-report">
+
+  <!-- 我的报表 Tab -->
+  <div id="rtab-mine" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+    <div class="report-main">
+      <div class="page-header">
+        <h2 class="page-title">我的报表</h2>
+        <p class="page-sub">包含 AI 搭建的报表，以及收藏的系统报表</p>
+      </div>
+      <!-- AI 搭建的报表 -->
+      <div style="margin-bottom:28px">
+        <div style="font-size:13px;font-weight:600;color:#555;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+          <span>🤖</span> AI 搭建的报表
+        </div>
+        <div class="report-grid" id="ai-report-grid"></div>
+      </div>
+      <!-- 收藏的系统报表 -->
+      <div>
+        <div style="font-size:13px;font-weight:600;color:#555;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+          <span>⭐</span> 收藏的系统报表
+        </div>
+        <div class="report-grid" id="fav-report-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 报表详情页（AI报表点击后进入） -->
+  <div id="rtab-detail" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+    <div class="report-main" style="position:relative">
+      <div class="page-header" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <button onclick="closeReportDetail()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#999;padding:0 4px" title="返回">←</button>
+        <div>
+          <h2 class="page-title" id="rd-title" style="margin:0">报表详情</h2>
+          <p class="page-sub" id="rd-desc" style="margin:0"></p>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button id="rd-refresh-btn" class="btn-primary" onclick="refreshReportDetail()" style="font-size:13px;padding:6px 16px">🔄 刷新数据</button>
+        </div>
+      </div>
+
+      <!-- 筛选条件 -->
+      <div style="background:#f8f9fa;border:1px solid #eee;border-radius:10px;padding:16px 20px;margin-bottom:20px">
+        <div style="font-size:13px;font-weight:600;color:#555;margin-bottom:12px">🔍 筛选条件</div>
+        <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end">
+          <div>
+            <div style="font-size:12px;color:#888;margin-bottom:4px">开始日期</div>
+            <input type="date" id="rd-date-start" style="border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-size:13px;color:#333">
+          </div>
+          <div>
+            <div style="font-size:12px;color:#888;margin-bottom:4px">结束日期</div>
+            <input type="date" id="rd-date-end" style="border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-size:13px;color:#333">
+          </div>
+          <div style="min-width:200px">
+            <div style="font-size:12px;color:#888;margin-bottom:4px">门店筛选</div>
+            <select id="rd-poi-select" multiple style="border:1px solid #ddd;border-radius:6px;padding:4px 8px;font-size:12px;color:#333;width:100%;max-height:80px"></select>
+          </div>
+          <button onclick="applyReportFilters()" class="btn-primary" style="font-size:13px;padding:6px 18px;align-self:flex-end">应用筛选</button>
+          <button onclick="resetReportFilters()" style="font-size:13px;padding:6px 14px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;color:#666;align-self:flex-end">重置</button>
+        </div>
+      </div>
+
+      <!-- 字段设置 -->
+      <div style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:13px;font-weight:600;color:#555">⚙️ 字段设置</span>
+          <button onclick="toggleFieldPanel()" id="field-panel-toggle" style="font-size:12px;color:#FF6900;background:none;border:none;cursor:pointer">展开 ▼</button>
+        </div>
+        <div id="rd-field-panel" style="display:none;background:#f8f9fa;border:1px solid #eee;border-radius:8px;padding:12px 16px">
+          <div style="font-size:12px;color:#888;margin-bottom:8px">勾选要显示的列：</div>
+          <div id="rd-field-checkboxes" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+          <div style="margin-top:10px;display:flex;gap:8px">
+            <button onclick="selectAllFields(true)" style="font-size:12px;color:#FF6900;background:none;border:none;cursor:pointer">全选</button>
+            <button onclick="selectAllFields(false)" style="font-size:12px;color:#999;background:none;border:none;cursor:pointer">全不选</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 数据表格 -->
+      <div id="rd-table-wrap" style="overflow:auto;border:1px solid #eee;border-radius:8px">
+        <div id="rd-loading" style="text-align:center;padding:40px;color:#bbb;font-size:14px">加载中...</div>
+        <table id="rd-table" style="display:none;width:100%;border-collapse:collapse;font-size:13px">
+          <thead id="rd-thead"></thead>
+          <tbody id="rd-tbody"></tbody>
+        </table>
+      </div>
+      <div id="rd-summary" style="font-size:12px;color:#aaa;margin-top:8px;text-align:right"></div>
+    </div>
+  </div>
+
+  <!-- 系统报表 Tab -->
+  <div id="rtab-system" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+    <div class="report-main" id="system-report-main">
+      <div class="page-header">
+        <h2 class="page-title">系统报表</h2>
+        <p class="page-sub">按分类浏览所有内置报表，点击收藏或直接查看</p>
+      </div>
+      <div id="system-report-content"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===== 下载中心主内容 ===== -->
+<!-- ===== 数据源主内容 ===== -->
+<div class="section" id="section-datasource">
+  <div id="ds-main" style="flex:1;overflow-y:auto;padding:28px 32px">
+    <div id="ds-content"></div>
+  </div>
+</div>
+
+<div class="section" id="section-download">
+  <div class="dl-main">
+    <!-- 导出任务 Tab -->
+    <div id="dl-tab-tasks">
+      <div class="page-header">
+        <h2 class="page-title">导出任务</h2>
+        <p class="page-sub">管理已创建的定期导出任务，支持新建、编辑、暂停、关闭</p>
+      </div>
+      <div class="action-bar">
+        <div class="action-bar-left">
+          <button class="btn-primary" onclick="openTaskModal()">＋ 新建导出任务</button>
+        </div>
+        <button class="btn-icon" title="刷新" onclick="loadExportTasks()">🔄</button>
+      </div>
+      <div class="info-bar">
+        <span class="info-bar-icon">ℹ️</span>
+        <span>导出任务按设定频率自动执行，执行结果可在「导出记录」中查看和下载。文件生成后系统保留 30 天，过期自动删除。</span>
+      </div>
+      <div class="data-table-wrap">
+        <table class="data-table" id="task-table">
+          <thead>
+            <tr>
+              <th>序号</th>
+              <th>任务名称</th>
+              <th>报表</th>
+              <th>类型</th>
+              <th>频率/日期</th>
+              <th>下次执行</th>
+              <th>创建时间</th>
+              <th>状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="task-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 导出记录 Tab -->
+    <div id="dl-tab-records" style="display:none">
+      <div class="page-header">
+        <h2 class="page-title">导出记录</h2>
+        <p class="page-sub">最近 30 天的所有导出记录，按时间降序排列</p>
+      </div>
+      <div class="action-bar">
+        <div class="action-bar-left"></div>
+        <button class="btn-icon" title="刷新" onclick="loadDownloadRecords()">🔄</button>
+      </div>
+      <div class="info-bar">
+        <span class="info-bar-icon">ℹ️</span>
+        <span>报表文件生成后系统保留 30 天，过期将自动删除。门店数量或查询时间跨度会影响下载时间，一般在 20 分钟后可下载数据。</span>
+      </div>
+      <div class="data-table-wrap">
+        <table class="data-table" id="record-table">
+          <thead>
+            <tr>
+              <th>序号</th>
+              <th>文件名</th>
+              <th>报表</th>
+              <th>数据日期</th>
+              <th>申请时间</th>
+              <th>就绪时间</th>
+              <th>状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="record-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 新建/编辑任务弹窗（重构版） ===== -->
+<div class="modal-mask" id="task-modal" style="display:none" onclick="closeTaskModal(event)">
+  <div class="modal" style="width:540px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">新建导出任务</span>
+      <button class="modal-close" onclick="closeTaskModal()">✕</button>
+    </div>
+    <div class="modal-body" style="max-height:70vh;overflow-y:auto">
+      <!-- 任务名称 -->
+      <div class="form-row">
+        <div class="form-label">任务名称 <span style="color:#FF6900">*</span></div>
+        <input class="form-input" id="f-name" placeholder="例如：每周门店营业额报表" />
+      </div>
+      <!-- 选择报表 -->
+      <div class="form-row">
+        <div class="form-label">选择报表 <span style="color:#FF6900">*</span></div>
+        <select class="form-select" id="f-report-id">
+          <option value="">-- 加载中 --</option>
+        </select>
+        <div class="form-hint">选择已保存的报表，导出时会自动使用其字段和过滤配置</div>
+      </div>
+      <!-- 导出类型 -->
+      <div class="form-row">
+        <div class="form-label">导出时间</div>
+        <div style="display:flex;gap:16px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="radio" name="export-type" value="dynamic" checked onchange="onExportTypeChange(this.value)">
+            <span>动态导出</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="radio" name="export-type" value="fixed" onchange="onExportTypeChange(this.value)">
+            <span>固定导出</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 动态导出配置 -->
+      <div id="dynamic-config">
+        <div class="form-row">
+          <div class="form-label">导出频率</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="cycle-daily" value="daily" onchange="onCycleChange()"> 每日（导出昨天数据）
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="cycle-weekly" value="weekly" onchange="onCycleChange()"> 每周（导出上周数据）
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="cycle-monthly" value="monthly" onchange="onCycleChange()"> 每月（导出上月数据）
+            </label>
+          </div>
+          <div class="form-hint">可多选，系统会按各频率分别触发</div>
+        </div>
+        <!-- 每周触发时：选择星期几 -->
+        <div class="form-row" id="row-weekday" style="display:none">
+          <div class="form-label">每周几触发</div>
+          <select class="form-select" id="f-weekday" style="width:160px">
+            <option value="0">周一</option><option value="1">周二</option>
+            <option value="2">周三</option><option value="3">周四</option>
+            <option value="4">周五</option><option value="5">周六</option><option value="6">周日</option>
+          </select>
+        </div>
+        <!-- 每月触发时：选择几号 -->
+        <div class="form-row" id="row-monthday" style="display:none">
+          <div class="form-label">每月几号触发</div>
+          <select class="form-select" id="f-monthday" style="width:160px">
+            ${Array.from({length:28},(_,i)=>`<option value="${i+1}">${i+1}号</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-label">触发时间</div>
+          <input type="time" class="form-input" id="f-trigger-time" value="08:00" style="width:140px" />
+        </div>
+      </div>
+
+      <!-- 固定导出配置 -->
+      <div id="fixed-config" style="display:none">
+        <div class="form-row">
+          <div class="form-label">数据日期范围</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="date" class="form-input" id="f-fixed-start" style="width:160px" />
+            <span style="color:#888">至</span>
+            <input type="date" class="form-input" id="f-fixed-end" style="width:160px" />
+          </div>
+          <div class="form-hint">一次性导出指定日期范围内的数据，任务完成后自动归档</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-default" onclick="closeTaskModal()">取消</button>
+      <button class="btn-primary" id="save-task-btn" onclick="saveTask()">创建任务</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== AI 搭建的报表 =====
+const AI_REPORTS = [
+  { icon:'📈', name:'营业额趋势', desc:'按日/周/月查看营业额走势，支持对比分析', tag:'经营分析', query:'最近30天每天的营业额趋势', starred:true },
+  { icon:'🍽️', name:'菜品销量排行', desc:'统计各菜品销售数量和金额，找出明星菜品', tag:'菜品分析', query:'上周卖得最好的20道菜品排行', starred:false },
+  { icon:'💳', name:'支付方式汇总', desc:'各支付渠道（微信/支付宝/现金等）收款统计', tag:'收款分析', query:'昨天各支付方式的收款金额汇总', starred:false },
+  { icon:'⏰', name:'餐段订单分布', desc:'早中晚各餐段的订单量和营业额分布', tag:'时段分析', query:'昨天各餐段（早餐/午餐/晚餐）的订单量和营业额', starred:false },
+  { icon:'🎫', name:'优惠活动效果', desc:'各类优惠券、折扣活动的使用量和折扣金额', tag:'营销分析', query:'本月各优惠活动的使用次数和优惠金额', starred:false },
+  { icon:'👥', name:'客单价分析', desc:'平均客单价趋势及分布，了解消费能力', tag:'客户分析', query:'最近7天每天的平均客单价和订单量', starred:false },
+];
+
+// ===== 系统报表分类清单 =====
+const SYSTEM_REPORTS = [
+  {
+    cat:'经营分析', icon:'📊',
+    groups:[
+      { group:'经营分析', items:['营业概览','营运目标','菜品销售分析','菜品分析','收款分析','菜品关联推荐'] }
+    ]
+  },
+  {
+    cat:'营业报表', icon:'📋',
+    groups:[
+      { group:'订单', items:['预订单明细','门店销售订单明细','全渠道订单明细（新）'] },
+      { group:'收入优惠', items:['收入优惠统计','收入优惠明细','券收入统计'] },
+      { group:'营业统计', items:['综合营业统计','餐区/桌台营业统计','营业指标同环比','促销活动统计','组织营业统计','餐区部门营业统计','门店日营业统计','营业时段汇总统计'] }
+    ]
+  },
+  {
+    cat:'菜品报表', icon:'🍽️',
+    groups:[
+      { group:'综合销售', items:['服务费统计','菜品综合统计','品项销售统计（新）'] },
+      { group:'菜品销售', items:['菜品销售明细','套餐销售统计','零销量菜品统计','退菜统计','菜品优惠统计','门店菜品销售统计','跨营业日退菜统计','跨营业日退菜明细','组织机构菜品营业统计'] },
+      { group:'菜品属性', items:['加料销售统计','规格销售统计','菜品规格做法统计'] },
+      { group:'成本毛利', items:['菜品成本毛利统计'] },
+      { group:'指标对比', items:['多店菜品销售指标对比','菜品销售周期对比'] }
+    ]
+  },
+  {
+    cat:'收款报表', icon:'💳',
+    groups:[
+      { group:'营业收款', items:['综合收款统计','营业收款统计','收银员收银统计','挂账明细','订金统计','营业付款专项分析'] },
+      { group:'智能对账', items:['营业收款与支付对账','营业收款与支付对账明细','积分商城支付对账','积分商城支付对账明细','收款统计与财务对账','收款明细','跨营业日退款明细','前台码对账报表','营业数据及平台对账'] },
+      { group:'平台结算', items:['团购核销明细（新）','门店支付结算统计','支付明细','支付结算','支付结算明细'] }
+    ]
+  },
+  {
+    cat:'财务报表', icon:'📒',
+    groups:[
+      { group:'记账本', items:['营业收入与收款统计','记账本收支统计','记账本收支明细','门店收支统计','记账本支出统计','利润表'] },
+      { group:'财务稽核', items:['交班统计','敏感操作统计','订单敏感操作明细','菜品敏感操作明细','菜品报损统计'] },
+      { group:'发票', items:['发票统计','发票明细'] }
+    ]
+  },
+  {
+    cat:'运营报表', icon:'🏪',
+    groups:[
+      { group:'运营管理', items:['门店运营报告','员工绩效统计','班次统计','预约统计'] }
+    ]
+  },
+  {
+    cat:'数据可视化', icon:'📈',
+    groups:[
+      { group:'可视化看板', items:['营业大屏','实时数据看板','趋势分析图'] }
+    ]
+  },
+];
+
+// 收藏状态（key = cat+name）
+let favSet = new Set(['营业概览','综合营业统计','菜品销售明细','综合收款统计']);
+
+
+// ===== 导出任务 Mock 数据 =====
+// ===== 导出任务 & 下载中心（真实 API 版） =====
+let exportTasksCache = [];
+let exportRecordsCache = [];
+
+// ===== 会话状态 =====
+let conversations = [];
+let activeId = null;
+let loading = false;
+let msgIdCounter = 0;
+
+const QUICK_QUESTIONS = [
+  '昨天的营业额是多少？', '本周每天营业额趋势',
+  '上周卖得最好的10道菜', '昨天各支付方式的收款金额',
+  '本月优惠情况汇总', '昨天各餐段的订单量',
+];
+
+// ===== 初始化 =====
+function init() {
+  // 快捷问题
+  const grid = document.getElementById('quick-grid');
+  QUICK_QUESTIONS.forEach(q => {
+    const btn = document.createElement('button');
+    btn.className = 'quick-btn'; btn.textContent = q;
+    btn.onclick = () => sendMessage(q); grid.appendChild(btn);
+  });
+  // 初始化报表页
+  renderMyReports();
+  renderSystemReports();
+  renderDsContent('order');
+  // 输入框
+  const ta = document.getElementById('input-textarea');
+  ta.addEventListener('input', () => {
+    ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 150) + 'px';
+    document.getElementById('btn-send').disabled = !ta.value.trim() || loading;
+  });
+  ta.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+  // 拖拽
+  const chatSection = document.getElementById('section-chat');
+  chatSection.addEventListener('dragover', e => { e.preventDefault(); showDropOverlay(true); });
+  chatSection.addEventListener('dragleave', () => showDropOverlay(false));
+  chatSection.addEventListener('drop', e => { e.preventDefault(); showDropOverlay(false); const f=e.dataTransfer.files?.[0]; if(f) sendMessage(null,f); });
+
+  newConversation();
+  loadExportTasks();
+  loadDownloadRecords();
+}
+
+// ===== 切换主 Section =====
+function switchSection(name) {
+  ['chat','report','datasource','download'].forEach(s => {
+    document.getElementById('nav-'+s).classList.toggle('active', s===name);
+    document.getElementById('section-'+s).classList.toggle('active', s===name);
+    const panel = document.getElementById('panel-'+s);
+    if (panel) panel.style.display = s===name ? 'flex' : 'none';
+  });
+}
+
+// ===== 数据源定义 =====
+const DS_SOURCES = {
+  order: {
+    name: '订单数据',
+    icon: '🧾',
+    table: 'mart_oprms.app_bizrpt_trade_ord_detail_ss_daily',
+    desc: '门店订单明细宽表，记录每笔订单从下单到结账的全生命周期数据，包含金额、状态、渠道、会员等信息。',
+    tags: ['订单', '营业额', '会员', '渠道', '支付'],
+    fields: [
+      { name:'tenant_id', type:'bigint', label:'租户ID', desc:'商户租户唯一标识' },
+      { name:'poi_id', type:'bigint', label:'门店ID', desc:'门店唯一标识' },
+      { name:'order_id', type:'bigint', label:'订单ID', desc:'系统内部订单唯一标识' },
+      { name:'order_no', type:'string', label:'订单号', desc:'业务侧展示的订单编号' },
+      { name:'partition_date', type:'string', label:'分区日期', desc:'数据分区日期，格式 YYYY-MM-DD，查询必填', tag:'分区键' },
+      { name:'biz_datekey', type:'int', label:'营业日期', desc:'订单归属营业日，格式 YYYYMMDD' },
+      { name:'stlmnt_datekey', type:'int', label:'结算日期', desc:'订单结算日期，格式 YYYYMMDD' },
+      { name:'order_time', type:'bigint', label:'下单时间', desc:'用户下单的时间戳（毫秒）' },
+      { name:'checkout_time', type:'bigint', label:'结账时间', desc:'订单完成结账的时间戳（毫秒）' },
+      { name:'order_amt', type:'bigint', label:'订单金额', desc:'订单原始金额（分）', unit:'分' },
+      { name:'biz_amt', type:'bigint', label:'营业额', desc:'实际营业额，剔除退款后（分）', unit:'分' },
+      { name:'income_amt', type:'bigint', label:'营业收入', desc:'营业额扣除优惠后的实收金额（分）', unit:'分' },
+      { name:'discount_amt', type:'bigint', label:'优惠金额', desc:'各类优惠减免金额合计（分）', unit:'分' },
+      { name:'pay_amt', type:'bigint', label:'支付金额', desc:'实际支付金额（分）', unit:'分' },
+      { name:'customer_cnt', type:'int', label:'就餐人数', desc:'该订单就餐人数' },
+      { name:'order_source_enum', type:'int', label:'订单来源', desc:'1=扫码点餐 2=POS收银 3=美团外卖 21=美团到店 22=小程序 44=其他' },
+      { name:'order_category_enum', type:'int', label:'订单分类', desc:'堂食/外卖/预订等订单分类枚举' },
+      { name:'sale_channel_enum', type:'int', label:'销售渠道', desc:'销售渠道枚举值' },
+      { name:'biz_type_enum', type:'int', label:'业务类型', desc:'正常/退款/调整等业务类型' },
+      { name:'order_status_enum', type:'int', label:'订单状态', desc:'订单当前状态枚举' },
+      { name:'is_mmbr', type:'int', label:'是否会员', desc:'1=会员订单 0=非会员' },
+      { name:'mmbr_card_no', type:'string', label:'会员卡号', desc:'会员卡编号' },
+      { name:'mmbr_grade_name', type:'string', label:'会员等级', desc:'会员等级名称' },
+      { name:'cashier_id', type:'int', label:'收银员ID', desc:'操作该订单的收银员ID' },
+      { name:'table_id', type:'int', label:'桌台ID', desc:'就餐桌台ID' },
+      { name:'table_name', type:'string', label:'桌台名称', desc:'就餐桌台名称' },
+      { name:'has_refund', type:'int', label:'是否有退款', desc:'1=有退款 0=无退款' },
+      { name:'refund_type_enum', type:'int', label:'退款类型', desc:'退款类型枚举' },
+    ]
+  },
+  dish: {
+    name: '菜品数据',
+    icon: '🍽️',
+    table: 'mart_oprms.app_bizrpt_ord_item_detail_ss_daily',
+    desc: '订单菜品明细宽表，每行代表一笔订单中的一个菜品SKU，包含菜品名称、数量、金额、分类等信息。',
+    tags: ['菜品', '销量', 'SKU', '退菜', '成本'],
+    fields: [
+      { name:'tenant_id', type:'int', label:'租户ID', desc:'商户租户唯一标识' },
+      { name:'poi_id', type:'int', label:'门店ID', desc:'门店唯一标识' },
+      { name:'partition_date', type:'string', label:'分区日期', desc:'数据分区日期，格式 YYYY-MM-DD，查询必填', tag:'分区键' },
+      { name:'biz_datekey', type:'int', label:'营业日期', desc:'菜品归属营业日，格式 YYYYMMDD' },
+      { name:'order_id', type:'bigint', label:'订单ID', desc:'所属订单ID' },
+      { name:'order_no', type:'string', label:'订单号', desc:'所属订单编号' },
+      { name:'spu_id', type:'bigint', label:'菜品SPU ID', desc:'菜品标准产品单元ID' },
+      { name:'spu_name', type:'string', label:'菜品名称', desc:'菜品SPU名称' },
+      { name:'sku_id', type:'bigint', label:'菜品SKU ID', desc:'菜品规格SKU ID' },
+      { name:'sku_name', type:'string', label:'SKU名称', desc:'菜品规格名称（含做法/规格）' },
+      { name:'item_name', type:'string', label:'菜品行名称', desc:'订单行展示的菜品名称' },
+      { name:'sku_price', type:'bigint', label:'单价', desc:'菜品单价（分）', unit:'分' },
+      { name:'sku_cnt', type:'decimal(20,4)', label:'数量', desc:'销售数量' },
+      { name:'sku_total_amt', type:'bigint', label:'菜品小计', desc:'数量×单价的原始金额（分）', unit:'分' },
+      { name:'sku_discount_amt', type:'bigint', label:'菜品优惠', desc:'该菜品享受的优惠金额（分）', unit:'分' },
+      { name:'sku_income_amt', type:'bigint', label:'菜品实收', desc:'优惠后实收金额（分）', unit:'分' },
+      { name:'sku_cost_amt', type:'bigint', label:'菜品成本', desc:'菜品成本金额（分）', unit:'分' },
+      { name:'cate_id', type:'bigint', label:'分类ID', desc:'菜品所属分类ID' },
+      { name:'is_combo', type:'int', label:'是否套餐', desc:'1=套餐 0=单品' },
+      { name:'is_gift_sku', type:'int', label:'是否赠品', desc:'1=赠品菜 0=正常销售' },
+      { name:'sku_specs', type:'string', label:'规格信息', desc:'菜品规格描述（如大/中/小）' },
+      { name:'order_source_enum', type:'int', label:'订单来源', desc:'所属订单的来源渠道枚举' },
+      { name:'order_category_enum', type:'int', label:'订单分类', desc:'所属订单分类' },
+      { name:'biz_type_enum', type:'int', label:'业务类型', desc:'正常销售/退菜/赠菜等类型' },
+      { name:'refund_type_enum', type:'int', label:'退菜类型', desc:'退菜类型枚举' },
+      { name:'cashier_id', type:'int', label:'收银员ID', desc:'收银员ID' },
+      { name:'table_id', type:'int', label:'桌台ID', desc:'就餐桌台ID' },
+    ]
+  },
+  payment: {
+    name: '支付数据',
+    icon: '💳',
+    table: 'mart_oprms.app_bizrpt_all_payment_detail_ss_daily',
+    desc: '订单支付明细宽表，每行代表一笔支付记录，包含支付方式、支付金额、优惠金额、收入金额等核心支付信息。',
+    tags: ['支付', '收款', '结账方式', '优惠', '结算'],
+    fields: [
+      { name:'tenant_id', type:'bigint', label:'租户ID', desc:'商户租户唯一标识' },
+      { name:'poi_id', type:'bigint', label:'门店ID', desc:'门店唯一标识' },
+      { name:'partition_date', type:'string', label:'分区日期', desc:'数据分区日期，格式 YYYY-MM-DD，查询必填', tag:'分区键' },
+      { name:'order_id', type:'bigint', label:'订单ID', desc:'所属订单ID' },
+      { name:'order_no', type:'string', label:'订单号', desc:'所属订单号' },
+      { name:'biz_datekey', type:'int', label:'营业日期', desc:'格式 YYYYMMDD' },
+      { name:'stlmnt_datekey', type:'int', label:'结算日期', desc:'格式 YYYYMMDD' },
+      { name:'pay_mode_id', type:'string', label:'结账方式ID', desc:'支付方式唯一标识' },
+      { name:'pay_mode_name', type:'string', label:'结账方式', desc:'支付方式名称，如微信、支付宝、现金等' },
+      { name:'second_category_name', type:'string', label:'结账方式类型', desc:'支付方式二级分类名称' },
+      { name:'pay_amt', type:'bigint', label:'支付金额', desc:'本次支付金额（分）', unit:'分' },
+      { name:'income_amt', type:'bigint', label:'收入金额', desc:'本次支付对应的收入金额（分）', unit:'分' },
+      { name:'cmpgn_amt', type:'bigint', label:'优惠金额', desc:'本次支付对应的优惠减免（分）', unit:'分' },
+      { name:'service_fee_income', type:'bigint', label:'服务费收入', desc:'服务费收入部分（分）', unit:'分' },
+      { name:'service_fee_discount', type:'bigint', label:'服务费减免', desc:'服务费优惠减免（分）', unit:'分' },
+      { name:'used_cnt', type:'int', label:'券核销张数', desc:'本笔支付核销的优惠券张数' },
+      { name:'face_value', type:'bigint', label:'券面值', desc:'优惠券面值（分）', unit:'分' },
+      { name:'pay_status_enum', type:'int', label:'支付状态', desc:'支付状态枚举值' },
+      { name:'pay_direction', type:'int', label:'支付方向', desc:'1=收款 -1=退款' },
+      { name:'order_source_enum', type:'int', label:'订单来源', desc:'所属订单来源渠道枚举' },
+      { name:'order_category_enum', type:'int', label:'订单分类', desc:'堂食/外卖等' },
+      { name:'meal_mode_enum', type:'int', label:'就餐模式', desc:'堂食/外带/外卖等就餐模式' },
+      { name:'cashier_id', type:'bigint', label:'收银员ID', desc:'收银员ID' },
+      { name:'checkout_source_enum', type:'int', label:'结账来源', desc:'POS/自助等结账来源' },
+      { name:'biz_type_enum', type:'int', label:'业务类型', desc:'正常/退款/调整等' },
+      { name:'is_over_stlmnt_date', type:'int', label:'是否跨结算日', desc:'1=跨结算日 0=正常' },
+      { name:'channel_income', type:'bigint', label:'渠道收入', desc:'渠道方承担的收入部分（分）', unit:'分' },
+      { name:'merchant_income', type:'bigint', label:'商户收入', desc:'商户承担的收入部分（分）', unit:'分' },
+    ]
+  },
+  campaign: {
+    name: '优惠数据',
+    icon: '🎫',
+    table: 'mart_oprms.app_bizrpt_cmpgn_detail_ss_daily',
+    desc: '订单优惠活动明细表，记录每笔订单中每条优惠记录的详细信息，包含活动类型、优惠金额、承担方等。',
+    tags: ['优惠', '活动', '券', '折扣', '促销'],
+    fields: [
+      { name:'tenant_id', type:'bigint', label:'租户ID', desc:'商户租户唯一标识' },
+      { name:'poi_id', type:'bigint', label:'门店ID', desc:'门店唯一标识' },
+      { name:'partition_date', type:'string', label:'分区日期', desc:'数据分区日期，格式 YYYY-MM-DD，查询必填', tag:'分区键' },
+      { name:'order_id', type:'bigint', label:'订单ID', desc:'所属订单ID' },
+      { name:'order_no', type:'string', label:'订单号', desc:'所属订单号' },
+      { name:'biz_datekey', type:'int', label:'营业日期', desc:'格式 YYYYMMDD' },
+      { name:'stlmnt_datekey', type:'int', label:'结算日期', desc:'格式 YYYYMMDD' },
+      { name:'cmpgn_id', type:'bigint', label:'活动ID', desc:'优惠活动唯一标识' },
+      { name:'cmpgn_no', type:'string', label:'活动编号', desc:'优惠活动编号' },
+      { name:'cmpgn_desc', type:'string', label:'活动描述', desc:'优惠活动描述文字，如"满100减20"' },
+      { name:'cmpgn_show_mode_name', type:'string', label:'优惠展示名称', desc:'在账单上展示的优惠名称' },
+      { name:'cmpgn_type_enum', type:'int', label:'活动类型', desc:'折扣/满减/赠品/代金券等枚举' },
+      { name:'cmpgn_mode_enum', type:'int', label:'活动模式', desc:'自动优惠/手动优惠等模式枚举' },
+      { name:'cmpgn_target_enum', type:'int', label:'优惠对象', desc:'整单优惠/菜品优惠等目标枚举' },
+      { name:'cmpgn_amt', type:'bigint', label:'优惠金额', desc:'本条优惠减免金额（分）', unit:'分' },
+      { name:'cmpgn_income', type:'bigint', label:'优惠收入', desc:'优惠对应的收入计算（分）', unit:'分' },
+      { name:'cmpgn_expense', type:'bigint', label:'优惠费用', desc:'优惠成本/费用（分）', unit:'分' },
+      { name:'income_amt', type:'bigint', label:'实收金额', desc:'优惠后实收（分）', unit:'分' },
+      { name:'discount_amt', type:'bigint', label:'折扣金额', desc:'折扣减免合计（分）', unit:'分' },
+      { name:'face_value', type:'bigint', label:'券面值', desc:'优惠券面值（分）', unit:'分' },
+      { name:'pay_mode_name', type:'string', label:'结账方式', desc:'关联的支付方式名称' },
+      { name:'used_times', type:'bigint', label:'使用次数', desc:'该优惠在此订单使用次数' },
+      { name:'is_paid', type:'int', label:'是否已支付', desc:'1=已支付 0=未支付' },
+      { name:'order_source_enum', type:'int', label:'订单来源', desc:'所属订单来源渠道枚举' },
+      { name:'cmpgn_status', type:'int', label:'优惠状态', desc:'优惠当前状态枚举' },
+    ]
+  }
+};
+
+let currentDsTab = 'order';
+
+function switchDsTab(tab) {
+  currentDsTab = tab;
+  Object.keys(DS_SOURCES).forEach(k => {
+    document.getElementById('dsmenu-'+k)?.classList.toggle('active', k===tab);
+  });
+  renderDsContent(tab);
+}
+
+function renderDsContent(tab) {
+  const ds = DS_SOURCES[tab];
+  if (!ds) return;
+  const container = document.getElementById('ds-content');
+
+  // 字段搜索状态
+  let searchKeyword = '';
+
+  const render = (keyword) => {
+    const filtered = ds.fields.filter(f =>
+      !keyword || f.name.includes(keyword) || f.label.includes(keyword) || f.desc.includes(keyword)
+    );
+    container.innerHTML = `
+      <!-- 头部 -->
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px">
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+            <span style="font-size:22px">${ds.icon}</span>
+            <h2 style="font-size:18px;font-weight:700;color:#1a1a2e">${ds.name}</h2>
+            <span style="background:#fff7f0;color:#FF6900;border:1px solid #ffd6b0;border-radius:12px;padding:2px 10px;font-size:11px">Hive</span>
+          </div>
+          <p style="color:#888;font-size:13px;max-width:680px;line-height:1.6">${ds.desc}</p>
+          <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+            ${ds.tags.map(t => `<span style="background:#f5f5f5;color:#666;padding:3px 10px;border-radius:12px;font-size:11px">${t}</span>`).join('')}
+          </div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;padding-left:20px">
+          <div style="font-size:11px;color:#bbb;margin-bottom:4px">数据表</div>
+          <div style="font-family:monospace;font-size:12px;color:#555;background:#f5f5f5;padding:6px 12px;border-radius:6px;cursor:pointer" onclick="navigator.clipboard?.writeText('${ds.table}').then(()=>showToast('表名已复制'))" title="点击复制">📋 ${ds.table}</div>
+          <div style="font-size:11px;color:#bbb;margin-top:8px">共 ${ds.fields.length} 个字段</div>
+        </div>
+      </div>
+
+      <!-- 搜索框 -->
+      <div style="margin-bottom:16px;display:flex;align-items:center;gap:10px">
+        <div style="position:relative;flex:1;max-width:320px">
+          <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#bbb">🔍</span>
+          <input id="ds-field-search" type="text" placeholder="搜索字段名 / 中文名 / 描述..." value="${keyword}"
+            style="width:100%;padding:7px 10px 7px 32px;border:1px solid #e8e8e8;border-radius:8px;font-size:13px;outline:none"
+            oninput="dsFieldSearch(this.value)"
+            onfocus="this.style.borderColor='#FF6900'" onblur="this.style.borderColor='#e8e8e8'"/>
+        </div>
+        <span style="font-size:12px;color:#aaa">${filtered.length} / ${ds.fields.length} 字段</span>
+      </div>
+
+      <!-- 字段表格 -->
+      <div style="border:1px solid #f0f0f0;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.04)">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="background:#fafafa">
+              <th style="padding:10px 14px;text-align:left;font-size:12px;color:#888;font-weight:600;border-bottom:1px solid #f0f0f0;width:200px">字段名</th>
+              <th style="padding:10px 14px;text-align:left;font-size:12px;color:#888;font-weight:600;border-bottom:1px solid #f0f0f0;width:120px">类型</th>
+              <th style="padding:10px 14px;text-align:left;font-size:12px;color:#888;font-weight:600;border-bottom:1px solid #f0f0f0;width:110px">中文名</th>
+              <th style="padding:10px 14px;text-align:left;font-size:12px;color:#888;font-weight:600;border-bottom:1px solid #f0f0f0">说明</th>
+              <th style="padding:10px 14px;text-align:left;font-size:12px;color:#888;font-weight:600;border-bottom:1px solid #f0f0f0;width:60px">单位</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filtered.map((f, i) => `
+              <tr style="border-bottom:1px solid #f7f7f7" onmouseenter="this.style.background='#fafcff'" onmouseleave="this.style.background=''">
+                <td style="padding:10px 14px">
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <code style="font-size:12px;color:#333;font-family:monospace;background:#f5f5f5;padding:2px 6px;border-radius:4px">${highlight(f.name, keyword)}</code>
+                    ${f.tag ? `<span style="background:#fff7f0;color:#FF6900;border:1px solid #ffd6b0;border-radius:8px;padding:1px 6px;font-size:10px">${f.tag}</span>` : ''}
+                  </div>
+                </td>
+                <td style="padding:10px 14px;font-size:12px;color:#666;font-family:monospace">${f.type}</td>
+                <td style="padding:10px 14px;font-size:12px;color:#444;font-weight:500">${highlight(f.label, keyword)}</td>
+                <td style="padding:10px 14px;font-size:12px;color:#888;line-height:1.5">${highlight(f.desc, keyword)}</td>
+                <td style="padding:10px 14px;font-size:11px;color:#aaa">${f.unit || ''}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        ${filtered.length === 0 ? '<div style="text-align:center;padding:32px;color:#bbb;font-size:13px">没有匹配的字段</div>' : ''}
+      </div>
+
+      <!-- 快捷 SQL -->
+      <div style="margin-top:20px;background:#f8f8f8;border-radius:10px;padding:16px">
+        <div style="font-size:13px;font-weight:600;color:#555;margin-bottom:10px">🚀 快捷查询示例</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          ${getQuickSqls(tab).map(q => `
+            <button onclick="useQuickSql(${JSON.stringify(q.sql)})"
+              style="padding:6px 14px;background:#fff;border:1px solid #e8e8e8;border-radius:20px;font-size:12px;color:#555;cursor:pointer;transition:all 0.15s"
+              onmouseenter="this.style.borderColor='#FF6900';this.style.color='#FF6900'"
+              onmouseleave="this.style.borderColor='#e8e8e8';this.style.color='#555'"
+            >${q.label}</button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  };
+
+  window.dsFieldSearch = (kw) => {
+    searchKeyword = kw;
+    render(kw);
+    // 聚焦回搜索框并保持光标
+    setTimeout(() => {
+      const input = document.getElementById('ds-field-search');
+      if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+    }, 10);
+  };
+
+  render(searchKeyword);
+}
+
+function highlight(text, keyword) {
+  if (!keyword) return escHtml(text);
+  const escaped = escHtml(text);
+  const kw = keyword.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  return escaped.replace(new RegExp(kw,'gi'), m => `<mark style="background:#fff3cd;padding:0 1px">${m}</mark>`);
+}
+
+function getQuickSqls(tab) {
+  const map = {
+    order: [
+      { label:'今日订单汇总', sql:'SELECT COUNT(*) as 订单数, ROUND(SUM(biz_amt)/100.0,2) as 营业额, ROUND(SUM(income_amt)/100.0,2) as 营业收入 FROM mart_oprms.app_bizrpt_trade_ord_detail_ss_daily WHERE partition_date=\'{{date}}\' AND tenant_id={{tid}}' },
+      { label:'按来源统计营业额', sql:'SELECT order_source_enum, COUNT(*) as 订单数, ROUND(SUM(biz_amt)/100.0,2) as 营业额 FROM mart_oprms.app_bizrpt_trade_ord_detail_ss_daily WHERE partition_date=\'{{date}}\' AND tenant_id={{tid}} GROUP BY 1 ORDER BY 3 DESC' },
+      { label:'会员 vs 非会员', sql:'SELECT is_mmbr, COUNT(*) as 订单数, ROUND(AVG(biz_amt)/100.0,2) as 客单价 FROM mart_oprms.app_bizrpt_trade_ord_detail_ss_daily WHERE partition_date=\'{{date}}\' AND tenant_id={{tid}} GROUP BY 1' },
+    ],
+    dish: [
+      { label:'菜品销量TOP10', sql:'SELECT spu_name, SUM(sku_cnt) as 销量, ROUND(SUM(sku_income_amt)/100.0,2) as 收入 FROM mart_oprms.app_bizrpt_ord_item_detail_ss_daily WHERE partition_date=\'{{date}}\' AND tenant_id={{tid}} GROUP BY 1 ORDER BY 2 DESC LIMIT 10' },
+      { label:'套餐vs单品', sql:'SELECT is_combo, COUNT(*) as 明细数, ROUND(SUM(sku_income_amt)/100.0,2) as 收入 FROM mart_oprms.app_bizrpt_ord_item_detail_ss_daily WHERE partition_date=\'{{date}}\' AND tenant_id={{tid}} GROUP BY 1' },
+      { label:'退菜统计', sql:'SELECT spu_name, SUM(sku_cnt) as 退菜数量 FROM mart_oprms.app_bizrpt_ord_item_detail_ss_daily WHERE partition_date=\'{{date}}\' AND tenant_id={{tid}} AND biz_type_enum=2 GROUP BY 1 ORDER BY 2 DESC LIMIT 10' },
+    ],
+    payment: [
+      { label:'按支付方式汇总', sql:"SELECT pay_mode_name, COUNT(*) as 笔数, ROUND(SUM(income_amt)/100.0,2) as 收入金额 FROM mart_oprms.app_bizrpt_all_payment_detail_ss_daily WHERE partition_date='{{date}}' AND tenant_id={{tid}} AND pay_direction=1 GROUP BY 1 ORDER BY 3 DESC" },
+      { label:'优惠金额汇总', sql:"SELECT pay_mode_name, ROUND(SUM(cmpgn_amt)/100.0,2) as 优惠金额, SUM(used_cnt) as 核销张数 FROM mart_oprms.app_bizrpt_all_payment_detail_ss_daily WHERE partition_date='{{date}}' AND tenant_id={{tid}} GROUP BY 1" },
+      { label:'收款 vs 退款', sql:"SELECT pay_direction, COUNT(*) as 笔数, ROUND(SUM(pay_amt)/100.0,2) as 金额 FROM mart_oprms.app_bizrpt_all_payment_detail_ss_daily WHERE partition_date='{{date}}' AND tenant_id={{tid}} GROUP BY 1" },
+    ],
+    campaign: [
+      { label:'优惠活动汇总', sql:"SELECT cmpgn_show_mode_name, COUNT(*) as 使用次数, ROUND(SUM(cmpgn_amt)/100.0,2) as 优惠金额 FROM mart_oprms.app_bizrpt_cmpgn_detail_ss_daily WHERE partition_date='{{date}}' AND tenant_id={{tid}} GROUP BY 1 ORDER BY 3 DESC" },
+      { label:'活动类型分布', sql:"SELECT cmpgn_type_enum, COUNT(*) as 次数, ROUND(SUM(cmpgn_amt)/100.0,2) as 优惠金额 FROM mart_oprms.app_bizrpt_cmpgn_detail_ss_daily WHERE partition_date='{{date}}' AND tenant_id={{tid}} GROUP BY 1" },
+    ],
+  };
+  return map[tab] || [];
+}
+
+function switchReportTab(tab) {
+  document.getElementById('rtab-mine').style.display = tab==='mine' ? 'flex' : 'none';
+  document.getElementById('rtab-system').style.display = tab==='system' ? 'flex' : 'none';
+  document.getElementById('rtab-detail').style.display = tab==='detail' ? 'flex' : 'none';
+  document.getElementById('rmenu-mine').classList.toggle('active', tab==='mine');
+  document.getElementById('rmenu-system').classList.toggle('active', tab==='system');
+}
+
+// ===== 渲染我的报表 =====
+async function renderMyReports() {
+  // 从后端加载已保存的报表
+  const aiGrid = document.getElementById('ai-report-grid');
+  aiGrid.innerHTML = '<div style="color:#bbb;font-size:13px;padding:12px 0">加载中...</div>';
+  try {
+    const token = localStorage.getItem('demo_token')||'demo';
+    const resp = await fetch('/api/reports', {headers:{Authorization:`Bearer ${token}`}});
+    const saved = resp.ok ? await resp.json() : [];
+    aiGrid.innerHTML = '';
+    if (saved.length === 0) {
+      aiGrid.innerHTML = '<div style="color:#bbb;font-size:13px;padding:12px 0">暂无报表，在「会话」中查询数据后点击「保存到我的报表」</div>';
+    } else {
+      saved.forEach(r => {
+        const card = document.createElement('div');
+        card.className = 'report-card';
+        card.style.cssText = 'background:#fff;border:1px solid #eee;border-radius:12px;padding:16px;cursor:pointer;transition:all .2s;position:relative';
+        card.onmouseenter = () => { card.style.borderColor='#FF6900'; card.style.boxShadow='0 4px 16px rgba(255,105,0,.1)'; };
+        card.onmouseleave = () => { card.style.borderColor='#eee'; card.style.boxShadow=''; };
+        const ts = r.updated_at ? new Date(r.updated_at*1000).toLocaleDateString('zh-CN') : '';
+        card.innerHTML = `
+          <div style="font-size:20px;margin-bottom:8px">📊</div>
+          <div style="font-weight:600;font-size:14px;color:#333;margin-bottom:4px">${escHtml(r.title)}</div>
+          <div style="font-size:12px;color:#aaa">${ts}</div>
+          <div style="font-size:11px;color:#bbb;margin-top:4px">${escHtml(r.description||'自定义报表')}</div>`;
+        card.onclick = () => openSavedReport(r.id);
+        aiGrid.appendChild(card);
+      });
+    }
+  } catch(e) {
+    aiGrid.innerHTML = '<div style="color:#f00;font-size:13px">加载失败</div>';
+  }
+  // 收藏的系统报表
+  const favGrid = document.getElementById('fav-report-grid');
+  favGrid.innerHTML = '';
+  let favCount = 0;
+  SYSTEM_REPORTS.forEach(cat => {
+    cat.groups.forEach(g => {
+      g.items.forEach(name => {
+        if (favSet.has(name)) {
+          favCount++;
+          const r = { icon: cat.icon, name, desc: `${cat.cat} · ${g.group}`, tag: cat.cat };
+          favGrid.appendChild(buildReportCard(r, () => openSystemReport(name)));
+        }
+      });
+    });
+  });
+  if (!favCount) {
+    favGrid.innerHTML = `<div style="color:#bbb;font-size:13px;padding:12px 0">暂无收藏的系统报表，前往「系统报表」点击 ☆ 收藏</div>`;
+  }
+}
+
+function buildReportCard(r, onClick) {
+  const card = document.createElement('div');
+  card.className = 'report-card';
+  card.innerHTML = `<div class="report-card-icon">${r.icon}</div>
+    <div class="report-card-name">${escHtml(r.name)}</div>
+    <div class="report-card-desc">${escHtml(r.desc)}</div>
+    <div class="report-card-footer">
+      <span class="report-card-tag">${r.tag}</span>
+      <span class="report-card-action">查看 →</span>
+    </div>`;
+  card.onclick = onClick;
+  return card;
+}
+
+// ===== 渲染系统报表 =====
+function renderSystemReports() {
+  const container = document.getElementById('system-report-content');
+  container.innerHTML = '';
+  SYSTEM_REPORTS.forEach(cat => {
+    const section = document.createElement('div');
+    section.style.cssText = 'margin-bottom:32px';
+    // 分类标题
+    const title = document.createElement('div');
+    title.style.cssText = 'font-size:16px;font-weight:700;color:#1a1a2e;margin-bottom:14px;display:flex;align-items:center;gap:8px;padding-bottom:10px;border-bottom:2px solid #f0f0f0';
+    title.innerHTML = `<span>${cat.icon}</span>${escHtml(cat.cat)}`;
+    section.appendChild(title);
+    // 各子分组
+    cat.groups.forEach(g => {
+      const groupWrap = document.createElement('div');
+      groupWrap.style.cssText = 'display:flex;gap:12px;margin-bottom:10px;align-items:flex-start';
+      const groupLabel = document.createElement('div');
+      groupLabel.style.cssText = 'width:72px;flex-shrink:0;font-size:12px;color:#999;padding-top:6px;text-align:right';
+      groupLabel.textContent = g.group;
+      const itemsWrap = document.createElement('div');
+      itemsWrap.style.cssText = 'flex:1;display:flex;flex-wrap:wrap;gap:8px';
+      g.items.forEach(name => {
+        const isFav = favSet.has(name);
+        const chip = document.createElement('div');
+        chip.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:#fff;border:1px solid #e8e8e8;border-radius:20px;font-size:12px;color:#444;cursor:pointer;transition:all 0.15s;white-space:nowrap';
+        chip.innerHTML = `${escHtml(name)}<span class="fav-star" data-name="${escHtml(name)}" style="font-size:13px;cursor:pointer;color:${isFav?'#FF6900':'#ccc'}" title="${isFav?'取消收藏':'收藏'}">${isFav?'★':'☆'}</span>`;
+        chip.addEventListener('mouseenter', () => { chip.style.borderColor='#FF6900'; chip.style.color='#FF6900'; });
+        chip.addEventListener('mouseleave', () => { chip.style.borderColor='#e8e8e8'; chip.style.color='#444'; });
+        chip.querySelector('.fav-star').addEventListener('click', (e) => {
+          e.stopPropagation();
+          const n = e.target.dataset.name;
+          if (favSet.has(n)) { favSet.delete(n); e.target.textContent='☆'; e.target.style.color='#ccc'; e.target.title='收藏'; }
+          else { favSet.add(n); e.target.textContent='★'; e.target.style.color='#FF6900'; e.target.title='取消收藏'; }
+          renderMyReports();
+        });
+        chip.addEventListener('click', () => openSystemReport(name));
+        itemsWrap.appendChild(chip);
+      });
+      groupWrap.appendChild(groupLabel);
+      groupWrap.appendChild(itemsWrap);
+      section.appendChild(groupWrap);
+    });
+    container.appendChild(section);
+  });
+}
+
+// ===== 下载中心子 Tab =====
+function switchDlTab(tab) {
+  document.getElementById('dl-tab-tasks').style.display = tab==='tasks' ? '' : 'none';
+  document.getElementById('dl-tab-records').style.display = tab==='records' ? '' : 'none';
+  document.getElementById('dlmenu-tasks').classList.toggle('active', tab==='tasks');
+  document.getElementById('dlmenu-records').classList.toggle('active', tab==='records');
+}
+function switchDownloadTab(tab) { switchDlTab(tab); }
+
+// ─── 从报表页 AI 引导快捷进入导出任务弹窗 ─────────────────────────────────────
+function openExportTaskFromReport(reportId, reportTitle) {
+  switchSection('download');
+  switchDlTab('tasks');
+  setTimeout(() => openTaskModal(reportId), 200);
+}
+async function createFixedExport(reportId, reportTitle) {
+  // 立即导出当前报表数据（固定日期：30天前到昨天，用户可在弹窗里改）
+  switchSection('download');
+  switchDlTab('tasks');
+  setTimeout(() => {
+    openTaskModal(reportId);
+    // 自动切换到固定导出
+    document.querySelector('input[name="export-type"][value="fixed"]').checked = true;
+    onExportTypeChange('fixed');
+    // 默认设置为上个月
+    const now = new Date();
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth()-1, 1);
+    const fmt = d => d.toISOString().slice(0,10);
+    document.getElementById('f-fixed-start').value = fmt(lastMonthStart);
+    document.getElementById('f-fixed-end').value = fmt(lastMonthEnd);
+    document.getElementById('f-name').value = `${reportTitle}_一次性导出`;
+  }, 250);
+}
+
+// ===== 报表（legacy stub） =====
+function openReport(i) {
+  const r = AI_REPORTS[i];
+  if (!r) return;
+  switchSection('chat'); newConversation();
+  setTimeout(() => sendMessage(r.query), 100);
+}
+
+// ===== 会话 =====
+function newConversation() {
+  const conv = { id: Date.now().toString(), title:'新对话', messages:[] };
+  conversations.unshift(conv); activeId = conv.id;
+  renderConvList(); renderMessages();
+  const ta = document.getElementById('input-textarea');
+  ta.value = ''; ta.style.height = 'auto';
+  document.getElementById('btn-send').disabled = true;
+  return conv;
+}
+function switchConv(id) { activeId = id; renderConvList(); renderMessages(); }
+function getActiveConv() { return conversations.find(c => c.id === activeId); }
+function renderConvList() {
+  const list = document.getElementById('conv-list'); list.innerHTML = '';
+  conversations.forEach(conv => {
+    const div = document.createElement('div');
+    div.className = 'conv-item' + (conv.id===activeId ? ' active' : '');
+    div.innerHTML = `<div class="conv-title">💬 ${escHtml(conv.title)}</div>`;
+    div.onclick = () => switchConv(conv.id); list.appendChild(div);
+  });
+}
+
+// ===== 消息渲染 =====
+function renderMessages() {
+  const conv = getActiveConv(); const msgs = conv ? conv.messages : [];
+  const inner = document.getElementById('messages-inner');
+  document.getElementById('empty-state').style.display = msgs.length===0 ? '' : 'none';
+  inner.querySelectorAll('.msg-row').forEach(el => el.remove());
+  msgs.forEach(msg => inner.appendChild(buildMsgEl(msg))); scrollBottom();
+}
+function buildMsgEl(msg) {
+  const row = document.createElement('div'); row.className = 'msg-row msg-'+msg.role;
+  if (msg.role==='user') {
+    let fileHtml = msg.file ? `<div class="file-badge">📎 ${escHtml(msg.file.name)} <span style="opacity:.7">(${(msg.file.size/1024).toFixed(1)}KB)</span></div>` : '';
+    row.innerHTML = `<div class="bubble-user">${fileHtml}${escHtml(msg.content)}</div>`;
+  } else {
+    let body;
+    if (msg.error) {
+      body = `<div class="error-msg">❌ ${escHtml(msg.error)}</div>`;
+    } else if (msg.rawHtml) {
+      // Excel 分析卡片等自定义 HTML
+      body = msg.rawHtml;
+    } else {
+      // 日期回退提示
+      const dateHint = msg.dateHint ? `<div style="margin:8px 0;padding:8px 12px;background:#fff8e1;border-left:3px solid #f39c12;border-radius:6px;font-size:13px;color:#7a5c00">⚠️ ${escHtml(msg.dateHint)}</div>` : '';
+      // 操作按钮区
+      const actionBtns = msg.canSave && msg._buildResult ? `
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button onclick="saveExcelReport(${JSON.stringify(msg._buildResult).replace(/"/g,'&quot;')})"
+            style="padding:7px 16px;background:#FF6900;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:5px">
+            💾 保存到我的报表
+          </button>
+          <button onclick="exportReportCsv(${msg.id})"
+            style="padding:7px 16px;background:#fff;color:#FF6900;border:1.5px solid #FF6900;border-radius:8px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:5px">
+            ⬇️ 导出 CSV
+          </button>
+        </div>` : '';
+      body = `<div class="ai-status">✅ ${escHtml(msg.content)}</div>
+        ${dateHint}
+        ${msg.result&&msg.result.columns&&msg.result.columns.length?buildTableHtml(msg.result):''}
+        ${msg.sql?`<button class="sql-toggle" onclick="toggleSql(${msg.id},this)"><span style="display:inline-block;transition:transform .2s;font-size:9px">▶</span> 查看生成的 SQL</button><pre class="sql-block" id="sql-${msg.id}" style="display:none">${escHtml(msg.sql)}</pre>`:''}
+        ${actionBtns}`;
+    }
+    row.innerHTML = `<div class="msg-ai"><div class="ai-avatar">🤖</div><div class="bubble-ai">${body}</div></div>`;
+  }
+  return row;
+}
+function fmtCell(val, colName) {
+  if (val === null || val === undefined || val === '') return '-';
+  const s = String(val);
+  // 金额类列：格式化千分位，保留2位小数
+  const isMoneyCol = /营业额|金额|收款|实收|流水|消费|成交/.test(colName||'');
+  if (isMoneyCol && !isNaN(Number(s))) {
+    const n = Number(s);
+    return '¥' + n.toLocaleString('zh-CN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  }
+  // 数量类列：整数千分位
+  if (/订单量|订单数|数量|笔数|人数/.test(colName||'') && !isNaN(Number(s)) && Number.isInteger(Number(s))) {
+    return Number(s).toLocaleString('zh-CN');
+  }
+  return s;
+}
+function buildTableHtml(result) {
+  const headers = result.columns.map(c=>`<th>${escHtml(c)}</th>`).join('');
+  const rows = result.rows.slice(0,20).map(row=>`<tr>${row.map((cell,i)=>`<td>${escHtml(fmtCell(cell, result.columns[i]))}</td>`).join('')}</tr>`).join('');
+  const more = result.total>20 ? `<div class="table-more">共 ${result.total} 条，显示前 20 条</div>` : '';
+  return `<div class="result-table-wrap"><table class="result-table"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>${more}</div>`;
+}
+function toggleSql(id, btn) {
+  const el = document.getElementById('sql-'+id); const arrow = btn.querySelector('span');
+  if (el.style.display==='none') { el.style.display='block'; arrow.style.transform='rotate(90deg)'; }
+  else { el.style.display='none'; arrow.style.transform=''; }
+}
+function appendLoadingMsg() {
+  const inner = document.getElementById('messages-inner');
+  const row = document.createElement('div'); row.className='msg-row msg-assistant loading-row';
+  row.innerHTML=`<div class="msg-ai"><div class="ai-avatar">🤖</div><div class="bubble-ai loading-bubble"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>`;
+  inner.appendChild(row); scrollBottom();
+}
+function removeLoadingMsg() { document.querySelector('.loading-row')?.remove(); }
+function scrollBottom() { const w=document.getElementById('messages-wrap'); setTimeout(()=>{w.scrollTop=w.scrollHeight;},50); }
+
+// ===== 发送消息 =====
+async function sendMessage(text, file) {
+  const ta = document.getElementById('input-textarea');
+  const msgText = text!==undefined ? text : ta.value;
+  if ((!msgText?.trim() && !file) || loading) return;
+  const conv = getActiveConv(); if (!conv) return;
+  const userMsg = { id:++msgIdCounter, role:'user', content: file?(msgText||'上传文件：'+file.name):msgText, file:file?{name:file.name,size:file.size}:null };
+  conv.messages.push(userMsg);
+  if (conv.messages.filter(m=>m.role==='user').length===1) conv.title = userMsg.content.slice(0,20)+(userMsg.content.length>20?'...':'');
+  ta.value=''; ta.style.height='auto'; setLoading(true);
+  document.getElementById('empty-state').style.display='none';
+  document.getElementById('messages-inner').appendChild(buildMsgEl(userMsg));
+  appendLoadingMsg();
+  try {
+    const token = localStorage.getItem('demo_token')||'demo';
+    let res;
+    if (file && file.name.match(/\.(xlsx|xls)$/i)) {
+      // Excel 模板上传 → Step1: 字段识别
+      removeLoadingMsg();
+      setLoading(false);  // 确保 loading 状态复位，避免第二次上传被拦截
+      await handleExcelUpload(file, conv, token);
+      return;
+    } else if (conv._pendingExcel) {
+      // 用户对 Excel 分析结果的补充说明 → 直接触发 build-report
+      const pendingExcel = conv._pendingExcel;
+      delete conv._pendingExcel;
+      const ta2 = document.getElementById('input-textarea');
+      if (ta2) ta2.placeholder = '输入问题，例如：查询上周各门店的营业额...';
+      removeLoadingMsg();
+      await submitExcelBuild(pendingExcel, msgText);
+      return;
+    } else if (conv._pendingFilterReportId) {
+      // 用户回复了筛选条件设置
+      const reportId = conv._pendingFilterReportId;
+      const filterCols = conv._pendingFilterColumns || [];
+      delete conv._pendingFilterReportId;
+      delete conv._pendingFilterColumns;
+      const ta2 = document.getElementById('input-textarea');
+      if (ta2) ta2.placeholder = '输入问题，例如：查询上周各门店的营业额...';
+      removeLoadingMsg();
+      if (msgText.includes('暂不') || msgText.includes('不设置') || msgText.includes('不需要')) {
+        const skipMsg = {id:++msgIdCounter, role:'assistant', content:'好的，已跳过筛选条件设置。可以在「我的报表」中随时打开该报表。'};
+        conv.messages.push(skipMsg);
+        document.getElementById('messages-inner').appendChild(buildMsgEl(skipMsg));
+      } else {
+        await saveFilterConfig(reportId, msgText, filterCols, conv);
+      }
+      setLoading(false); renderConvList(); scrollBottom();
+      return;
+    } else {
+      const history=conv.messages.slice(-6).map(m=>({role:m.role,content:m.role==='user'?m.content:(m.sql?`已生成SQL: ${m.sql}`:m.content)}));
+      const resp=await fetch('/api/chat/query',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({query:msgText,history})});
+      if (!resp.ok) throw new Error(await resp.text()); res=await resp.json();
+    }
+    const aiMsg={
+      id:++msgIdCounter, role:'assistant',
+      content: res.reply || `已查询到 ${res.total} 条数据`,
+      sql: res.sql,
+      result: {columns:res.columns, rows:res.rows, total:res.total},
+      canSave: res.total > 0,
+      _buildResult: res.total > 0 ? {sql: res.sql, columns: res.columns, rows: res.rows, total: res.total, chart_type: res.chart_type || 'table', query: msgText} : null
+    };
+    conv.messages.push(aiMsg); removeLoadingMsg(); document.getElementById('messages-inner').appendChild(buildMsgEl(aiMsg));
+  } catch(e) {
+    const errMsg={id:++msgIdCounter,role:'assistant',content:'',error:e.message||'查询失败，请重试'};
+    conv.messages.push(errMsg); removeLoadingMsg(); document.getElementById('messages-inner').appendChild(buildMsgEl(errMsg));
+  } finally { setLoading(false); renderConvList(); scrollBottom(); }
+}
+function handleFilePick(e) { const f=e.target.files?.[0]; if(f) sendMessage(null,f); e.target.value=''; }
+
+// ===== Excel 模板建报表流程 =====
+
+async function handleExcelUpload(file, conv, token) {
+  // Step1: 调用 /api/excel/analyze
+  const fd = new FormData(); fd.append('file', file);
+  let analyzeRes;
+  try {
+    const resp = await fetch('/api/excel/analyze', {
+      method:'POST', headers:{Authorization:`Bearer ${token}`}, body:fd
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    analyzeRes = await resp.json();
+  } catch(e) {
+    const errMsg = {id:++msgIdCounter,role:'assistant',content:'',error:'Excel 解析失败：'+e.message};
+    conv.messages.push(errMsg);
+    document.getElementById('messages-inner').appendChild(buildMsgEl(errMsg));
+    setLoading(false); renderConvList(); scrollBottom(); return;
+  }
+
+  const matchRate = Math.round((analyzeRes.match_rate||0)*100);
+  const unmappedList = analyzeRes.unmapped||[];
+  const dimCoveredList = analyzeRes.dim_covered||[];
+  const mappedCount = Object.keys(analyzeRes.mapped||{}).length;
+  const hasDimensions = (analyzeRes.dimensions?.dimensions||[]).length > 0;
+
+  // 字段识别摘要
+  const mappedRows = Object.entries(analyzeRes.mapped||{}).map(([h,f]) =>
+    `<tr><td style="padding:4px 10px;color:#333;font-size:13px">${escHtml(h)}</td>` +
+    `<td style="padding:4px 10px;font-family:monospace;font-size:11px;color:#FF6900">${escHtml(f)}</td>` +
+    `<td style="padding:4px 10px"><span style="background:#e6f9ee;color:#27ae60;padding:1px 7px;border-radius:8px;font-size:11px">✓</span></td></tr>`
+  ).join('');
+  // 维度覆盖的列 → 显示为「自定义维度」标签，不再追问
+  const dimCoveredRows = dimCoveredList.map(h =>
+    `<tr><td style="padding:4px 10px;color:#333;font-size:13px">${escHtml(h)}</td>` +
+    `<td style="padding:4px 10px;font-size:11px;color:#6b4fbb">自定义维度</td>` +
+    `<td style="padding:4px 10px"><span style="background:#ede9ff;color:#6b4fbb;padding:1px 7px;border-radius:8px;font-size:11px">🧩 维度列</span></td></tr>`
+  ).join('');
+  const unmappedRows = unmappedList.map(h =>
+    `<tr><td style="padding:4px 10px;color:#333;font-size:13px">${escHtml(h)}</td>` +
+    `<td style="padding:4px 10px;color:#bbb;font-size:12px">—</td>` +
+    `<td style="padding:4px 10px"><span style="background:#fff3e0;color:#e67e22;padding:1px 7px;border-radius:8px;font-size:11px">待说明</span></td></tr>`
+  ).join('');
+
+  // 组装 AI 的对话气泡内容
+  let questionText = '';
+  if (unmappedList.length > 0) {
+    questionText = `有 ${unmappedList.length} 个字段暂时未能自动识别（${unmappedList.map(h=>`<b>${escHtml(h)}</b>`).join('、')}），能告诉我它们代表什么含义吗？顺便说一下需要查询哪个时间范围的数据。`;
+  } else if (hasDimensions) {
+    questionText = `字段识别完成 🎉 并且检测到了自定义维度定义，已自动解析。你想查询哪个时间范围的数据？`;
+  } else {
+    questionText = `${mappedCount} 个字段全部识别成功 🎉 你想查询哪个时间范围的数据？比如「昨天」「最近7天」「本月」，或者有什么特别的过滤条件和排序要求也可以直接说。`;
+  }
+
+  const analyzeCardHtml = `
+<div style="max-width:560px">
+  <div style="background:#fff;border:1px solid #e8e8e8;border-radius:12px;overflow:hidden;margin-bottom:10px">
+    <div style="background:linear-gradient(135deg,#FF6900,#ff8c42);padding:10px 14px;display:flex;align-items:center;gap:8px">
+      <span style="font-size:16px">📊</span>
+      <div>
+        <span style="color:#fff;font-weight:600;font-size:13px">Excel 解析完成</span>
+        <span style="color:rgba(255,255,255,0.8);font-size:11px;margin-left:8px">${file.name} · ${analyzeRes.headers.length} 个字段 · 识别率 ${matchRate}%</span>
+      </div>
+    </div>
+    <div style="padding:10px 14px">
+      <table style="width:100%;border-collapse:collapse">
+        <tbody>${mappedRows}${dimCoveredRows}${unmappedRows}</tbody>
+      </table>
+    </div>
+  </div>
+  <div style="font-size:14px;color:#333;line-height:1.7">${questionText}</div>
+  <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+    ${['查昨天数据','查近7天','查本月','按金额从高到低','按门店分组'].map(hint=>
+      `<span onclick="quickReply('${hint}')"
+        style="padding:5px 12px;background:#f5f5f5;color:#555;border-radius:16px;font-size:12px;cursor:pointer;border:1px solid #e8e8e8"
+        onmouseenter="this.style.background='#ffe8d6';this.style.borderColor='#FF6900'" onmouseleave="this.style.background='#f5f5f5';this.style.borderColor='#e8e8e8'">${hint}</span>`
+    ).join('')}
+  </div>
+</div>`;
+
+  const aiMsg = {id:++msgIdCounter, role:'assistant', content:'', rawHtml:analyzeCardHtml};
+  conv.messages.push(aiMsg);
+  document.getElementById('messages-inner').appendChild(buildMsgEl(aiMsg));
+
+  // 把 analyzeRes 挂到 conv 上，等用户下一条消息触发 build-report
+  conv._pendingExcel = analyzeRes;
+
+  // 聚焦输入框，提示用户直接回复
+  const ta = document.getElementById('input-textarea');
+  if (ta) { ta.focus(); ta.placeholder = '直接回复即可，例如：查近7天，按门店汇总...'; }
+
+  setLoading(false); renderConvList(); scrollBottom();
+}
+
+// 快捷回复（点击建议标签直接发送）
+function quickReply(text) {
+  const ta = document.getElementById('input-textarea');
+  if (ta) { ta.value = text; sendMessage(text); }
+}
+
+async function submitExcelBuild(analyzeRes, userDesc) {
+  const conv = getActiveConv(); if (!conv) return;
+  const token = localStorage.getItem('demo_token')||'demo';
+
+  appendLoadingMsg(); setLoading(true); scrollBottom();
+
+  try {
+    const resp = await fetch('/api/excel/build-report', {
+      method:'POST',
+      headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
+      body:JSON.stringify({
+        headers: analyzeRes.headers,
+        mapped: analyzeRes.mapped,
+        unmapped: analyzeRes.unmapped,
+        dim_covered: analyzeRes.dim_covered || [],
+        confirmed_dimensions: (analyzeRes.dimensions?.dimensions || []),
+        user_description: userDesc||'',
+      })
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    const res = await resp.json();
+
+    // 渲染报表结果
+    const mid = ++msgIdCounter;
+    const resultMsg = {
+      id: mid, role:'assistant',
+      content:`报表「${res.report_title}」已生成，共 ${res.total} 条数据`,
+      sql: res.sql,
+      result:{columns:res.columns, rows:res.rows, total:res.total},
+      reportTitle: res.report_title,
+      dateHint: res.date_hint || null,
+      canSave: true,
+      _buildResult: res,
+    };
+    // 把结果缓存到 window._reportCache，供导出 CSV 使用
+    if (!window._reportCache) window._reportCache = {};
+    window._reportCache[mid] = res;
+    conv.messages.push(resultMsg);
+    removeLoadingMsg();
+    document.getElementById('messages-inner').appendChild(buildMsgEl(resultMsg));
+  } catch(e) {
+    const errMsg={id:++msgIdCounter,role:'assistant',content:'',error:'报表生成失败：'+e.message};
+    conv.messages.push(errMsg); removeLoadingMsg();
+    document.getElementById('messages-inner').appendChild(buildMsgEl(errMsg));
+  } finally { setLoading(false); renderConvList(); scrollBottom(); }
+}
+function setLoading(val) { loading=val; const btn=document.getElementById('btn-send'); btn.disabled=val||!document.getElementById('input-textarea').value.trim(); btn.textContent=val?'查询中...':'发送 ↑'; }
+function showDropOverlay(show) { let el=document.getElementById('drop-overlay'); if(show&&!el){el=document.createElement('div');el.id='drop-overlay';el.className='drop-overlay';el.textContent='📂 松开以上传文件';document.body.appendChild(el);}else if(!show&&el){el.remove();} }
+function logout() { localStorage.clear(); location.href='/login'; }
+
+async function saveFilterConfig(reportId, userDesc, availableCols, conv) {
+  // 根据用户描述推断筛选字段
+  const filters = [];
+  if (userDesc.includes('城市')) filters.push({field:'城市', type:'select', label:'城市'});
+  if (userDesc.includes('门店')) filters.push({field:'门店名称', type:'select', label:'门店名称'});
+  if (userDesc.includes('日期') || userDesc.includes('时间')) filters.push({field:'日期', type:'daterange', label:'日期范围'});
+  if (userDesc.includes('机构') || userDesc.includes('编码')) filters.push({field:'机构编码', type:'select', label:'机构编码'});
+  // 如果没识别出来，尝试从可用列匹配
+  if (filters.length === 0) {
+    availableCols.forEach(c => {
+      if (userDesc.includes(c)) filters.push({field:c, type:'select', label:c});
+    });
+  }
+  if (filters.length === 0) {
+    const replyMsg = {id:++msgIdCounter, role:'assistant', content:`没有识别到具体筛选条件，请描述你想按哪个维度筛选，比如「按城市筛选」或「按门店名称筛选」。`};
+    conv.messages.push(replyMsg);
+    document.getElementById('messages-inner').appendChild(buildMsgEl(replyMsg));
+    conv._pendingFilterReportId = reportId;
+    conv._pendingFilterColumns = availableCols;
+    return;
+  }
+  // 保存筛选配置（存到 localStorage，key = report_{id}_filters）
+  localStorage.setItem(`report_${reportId}_filters`, JSON.stringify(filters));
+  const fieldNames = filters.map(f => f.label).join('、');
+  const replyMsg = {id:++msgIdCounter, role:'assistant',
+    content:`已为报表设置筛选条件：${fieldNames}。下次在「我的报表」打开时可以按这些维度过滤数据 🎉`};
+  conv.messages.push(replyMsg);
+  document.getElementById('messages-inner').appendChild(buildMsgEl(replyMsg));
+  renderMyReports();
+}
+
+function exportReportCsv(msgId) {
+  const res = window._reportCache && window._reportCache[msgId];
+  if (!res) { showToast('❌ 数据已失效，请重新生成'); return; }
+  const cols = res.columns || [];
+  const rows = res.rows || [];
+  // 生成 CSV
+  const escape = v => { const s = String(v??''); return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g,'""')}"` : s; };
+  const csv = [cols.map(escape).join(','), ...rows.map(r => r.map(escape).join(','))].join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const filename = `${res.report_title||'报表'}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+  // 写入下载中心记录
+  const recId = Date.now();
+  exportRecords.unshift({
+    id: recId,
+    module: '自定义报表',
+    content: res.report_title || '报表',
+    applicant: '当前用户',
+    applyTime: new Date().toLocaleString('zh-CN'),
+    updateTime: new Date().toLocaleString('zh-CN'),
+    status: 'done',
+    filename,
+    _blob: blob,
+  });
+  showToast(`✅ 已导出 ${filename}，可在「下载中心」查看`);
+  renderRecordTable();
+}
+
+async function saveExcelReport(buildResult) {
+  const token = localStorage.getItem('demo_token')||'demo';
+  try {
+    const resp = await fetch('/api/reports', {
+      method:'POST',
+      headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
+      body:JSON.stringify({
+        title: buildResult.report_title,
+        sql: buildResult.sql,
+        columns: buildResult.columns,
+        rows: buildResult.rows,
+        chart_type: buildResult.chart_type || 'table',
+        description: '由 Excel 模板生成',
+      })
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    const saved = await resp.json();
+    showToast('✅ 已保存到「我的报表」');
+    renderMyReports();
+    // 保存成功后，AI 主动发消息询问筛选条件
+    const conv = getActiveConv();
+    if (conv) {
+      const filterCols = (buildResult.columns || []).filter(c =>
+        ['城市','门店名称','机构编码','日期','营业日期','时段','来源','订单来源'].some(k => c.includes(k))
+      );
+      const filterSuggest = filterCols.length
+        ? `比如你可以按 **${filterCols.slice(0,3).join('、')}** 等维度筛选`
+        : '比如按城市、门店、日期范围等筛选';
+      const promptHtml = `
+<div style="max-width:500px">
+  <div style="font-size:14px;color:#333;line-height:1.8;margin-bottom:10px">
+    ✅ 报表「<b>${escHtml(buildResult.report_title)}</b>」已保存，下次可在「我的报表」中直接打开。<br>
+    需要为这个报表设置<b>筛选条件</b>吗？设置后打开报表时可以按条件过滤数据。<br>
+    <span style="color:#888;font-size:12px">${filterSuggest}</span>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <span onclick="quickReply('帮我设置筛选条件：城市')"
+      style="padding:5px 12px;background:#f5f5f5;color:#555;border-radius:16px;font-size:12px;cursor:pointer;border:1px solid #e8e8e8"
+      onmouseenter="this.style.background='#ffe8d6';this.style.borderColor='#FF6900'" onmouseleave="this.style.background='#f5f5f5';this.style.borderColor='#e8e8e8'">
+      按城市筛选
+    </span>
+    <span onclick="quickReply('帮我设置筛选条件：门店名称')"
+      style="padding:5px 12px;background:#f5f5f5;color:#555;border-radius:16px;font-size:12px;cursor:pointer;border:1px solid #e8e8e8"
+      onmouseenter="this.style.background='#ffe8d6';this.style.borderColor='#FF6900'" onmouseleave="this.style.background='#f5f5f5';this.style.borderColor='#e8e8e8'">
+      按门店筛选
+    </span>
+    <span onclick="quickReply('帮我设置筛选条件：日期范围')"
+      style="padding:5px 12px;background:#f5f5f5;color:#555;border-radius:16px;font-size:12px;cursor:pointer;border:1px solid #e8e8e8"
+      onmouseenter="this.style.background='#ffe8d6';this.style.borderColor='#FF6900'" onmouseleave="this.style.background='#f5f5f5';this.style.borderColor='#e8e8e8'">
+      按日期范围筛选
+    </span>
+    <span onclick="quickReply('暂不设置筛选条件')"
+      style="padding:5px 12px;background:#f5f5f5;color:#888;border-radius:16px;font-size:12px;cursor:pointer;border:1px solid #e8e8e8"
+      onmouseenter="this.style.background='#f0f0f0'" onmouseleave="this.style.background='#f5f5f5'">
+      暂不设置
+    </span>
+  </div>
+  <div style="margin-top:12px;padding:10px 12px;background:#fff9f5;border:1px solid #ffe0c8;border-radius:8px;font-size:13px;color:#555;line-height:1.7">
+    💡 <b>定时导出</b>：你也可以把这张报表设置为<b>自动定期导出</b>，每周/每月自动生成数据文件，在「下载中心」下载。
+    <div style="margin-top:8px">
+      <span onclick="openExportTaskFromReport('${saved.id}','${escHtml(buildResult.report_title)}')"
+        style="padding:5px 14px;background:#FF6900;color:#fff;border-radius:16px;font-size:12px;cursor:pointer;font-weight:500">
+        📅 创建定时导出任务
+      </span>
+      <span onclick="createFixedExport('${saved.id}','${escHtml(buildResult.report_title)}')"
+        style="margin-left:8px;padding:5px 14px;background:#f5f5f5;color:#555;border-radius:16px;font-size:12px;cursor:pointer;border:1px solid #e8e8e8"
+        onmouseenter="this.style.background='#ffe8d6'" onmouseleave="this.style.background='#f5f5f5'">
+        ⬇️ 立即导出当前数据
+      </span>
+    </div>
+  </div>
+</div>`;
+      const filterAskMsg = {id:++msgIdCounter, role:'assistant', content:'', rawHtml: promptHtml};
+      conv.messages.push(filterAskMsg);
+      document.getElementById('messages-inner').appendChild(buildMsgEl(filterAskMsg));
+      // 设置等待筛选条件状态
+      conv._pendingFilterReportId = saved.id;
+      conv._pendingFilterColumns = buildResult.columns || [];
+      const ta = document.getElementById('input-textarea');
+      if (ta) ta.placeholder = '描述你需要的筛选条件，或点击上方快捷选项...';
+      scrollBottom();
+    }
+  } catch(e) {
+    showToast('❌ 保存失败：'+e.message);
+  }
+}
+
+// ===== 导出任务表格 =====
+const STATUS_TASK = { running:{cls:'badge-running',icon:'●',label:'执行中'}, paused:{cls:'badge-paused',icon:'●',label:'已暂停'}, closed:{cls:'badge-closed',icon:'●',label:'已关闭'} };
+const FREQ_LABEL = { daily:'每日', weekly:'每周', monthly:'每月', once:'单次' };
+// ─── 加载报表列表到弹窗下拉 ────────────────────────────────────────────────────
+async function loadReportsIntoModal() {
+  const sel = document.getElementById('f-report-id');
+  sel.innerHTML = '<option value="">-- 选择报表 --</option>';
+  try {
+    const resp = await fetch('/api/reports', { headers: { Authorization: 'Bearer demo' } });
+    const data = await resp.json();
+    const reports = Array.isArray(data) ? data : (data.reports || []);
+    reports.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r.id; opt.textContent = r.title;
+      sel.appendChild(opt);
+    });
+  } catch (e) {
+    sel.innerHTML = '<option value="">加载失败，请刷新</option>';
+  }
+}
+
+// ─── 导出类型切换 ────────────────────────────────────────────────────────────
+function onExportTypeChange(val) {
+  document.getElementById('dynamic-config').style.display = val === 'dynamic' ? '' : 'none';
+  document.getElementById('fixed-config').style.display = val === 'fixed' ? '' : 'none';
+}
+function onCycleChange() {
+  const weekly = document.getElementById('cycle-weekly').checked;
+  const monthly = document.getElementById('cycle-monthly').checked;
+  document.getElementById('row-weekday').style.display = weekly ? '' : 'none';
+  document.getElementById('row-monthday').style.display = monthly ? '' : 'none';
+}
+
+// ─── 加载任务列表 ─────────────────────────────────────────────────────────────
+async function loadExportTasks() {
+  try {
+    const resp = await fetch('/api/export-tasks', { headers: { Authorization: 'Bearer demo' } });
+    exportTasksCache = await resp.json();
+  } catch (e) { exportTasksCache = []; }
+  renderTaskTable();
+}
+
+// ─── 加载下载记录 ─────────────────────────────────────────────────────────────
+async function loadDownloadRecords() {
+  try {
+    const resp = await fetch('/api/downloads', { headers: { Authorization: 'Bearer demo' } });
+    exportRecordsCache = await resp.json();
+  } catch (e) { exportRecordsCache = []; }
+  renderRecordTable();
+}
+
+const CYCLE_LABEL = { daily:'每日', weekly:'每周', monthly:'每月' };
+const EXPORT_TYPE_LABEL = { dynamic:'动态', fixed:'固定' };
+function renderTaskTable() {
+  const tbody = document.getElementById('task-tbody'); tbody.innerHTML='';
+  if (!exportTasksCache.length) { tbody.innerHTML=`<tr><td colspan="9" class="no-data">暂无导出任务，点击「新建导出任务」创建</td></tr>`; return; }
+  exportTasksCache.forEach((t,i) => {
+    const statusLabel = t.status==='active'?'<span class="badge badge-done"><span class="badge-dot"></span>运行中</span>'
+      : t.status==='pending'?'<span class="badge badge-running"><span class="badge-dot"></span>待执行</span>'
+      : '<span class="badge badge-failed">已结束</span>';
+    const cycles = Array.isArray(t.dynamic_cycle) ? t.dynamic_cycle : (t.dynamic_cycle ? [t.dynamic_cycle] : []);
+    const freqStr = t.export_type==='fixed'
+      ? `${t.fixed_date_start||''}~${t.fixed_date_end||''}`
+      : (cycles.map(c=>CYCLE_LABEL[c]||c).join('+') || '—');
+    const nextRun = t.next_run_at ? new Date(t.next_run_at*1000).toLocaleString('zh-CN') : '—';
+    const created = t.created_at ? new Date(t.created_at*1000).toLocaleString('zh-CN') : '—';
+    const tr = document.createElement('tr');
+    tr.innerHTML=`<td>${i+1}</td>
+      <td style="font-weight:500">${escHtml(t.task_name)}</td>
+      <td>${escHtml(t.report_title)}</td>
+      <td>${EXPORT_TYPE_LABEL[t.export_type]||t.export_type}</td>
+      <td><span class="freq-tag">${escHtml(freqStr)}</span></td>
+      <td style="color:#888;font-size:12px">${t.export_type==='dynamic' ? nextRun : '—'}</td>
+      <td style="color:#888;font-size:12px">${created}</td>
+      <td>${statusLabel}</td>
+      <td><span class="tbl-action danger" onclick="deleteTask('${t.id}')">删除</span></td>`;
+    tbody.appendChild(tr);
+  });
+}
+async function deleteTask(id) {
+  if (!confirm('确认删除该导出任务？')) return;
+  try {
+    await fetch(`/api/export-tasks/${id}`, { method: 'DELETE', headers: { Authorization: 'Bearer demo' } });
+    showToast('任务已删除');
+    loadExportTasks();
+  } catch (e) { showToast('删除失败'); }
+}
+
+// ===== 弹窗 =====
+function openTaskModal(prefillReportId) {
+  document.getElementById('modal-title').textContent = '新建导出任务';
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-trigger-time').value = '08:00';
+  // 重置类型
+  document.querySelector('input[name="export-type"][value="dynamic"]').checked = true;
+  onExportTypeChange('dynamic');
+  document.getElementById('cycle-daily').checked = false;
+  document.getElementById('cycle-weekly').checked = false;
+  document.getElementById('cycle-monthly').checked = false;
+  onCycleChange();
+  // 加载报表列表
+  loadReportsIntoModal().then(() => {
+    if (prefillReportId) {
+      const sel = document.getElementById('f-report-id');
+      sel.value = prefillReportId;
+    }
+  });
+  document.getElementById('task-modal').style.display = 'flex';
+}
+function closeTaskModal(e) {
+  if (e && e.target !== document.getElementById('task-modal')) return;
+  document.getElementById('task-modal').style.display = 'none';
+}
+async function saveTask() {
+  const name = document.getElementById('f-name').value.trim();
+  const reportId = document.getElementById('f-report-id').value;
+  if (!name) { alert('请填写任务名称'); return; }
+  if (!reportId) { alert('请选择报表'); return; }
+
+  const exportType = document.querySelector('input[name="export-type"]:checked').value;
+  const payload = { report_id: reportId, task_name: name, export_type: exportType };
+
+  if (exportType === 'dynamic') {
+    const cycles = ['daily','weekly','monthly'].filter(c => document.getElementById(`cycle-${c}`).checked);
+    if (!cycles.length) { alert('请至少选择一种导出频率'); return; }
+    payload.dynamic_cycle = cycles;
+    payload.trigger_time = document.getElementById('f-trigger-time').value || '08:00';
+    if (cycles.includes('weekly')) payload.trigger_weekday = parseInt(document.getElementById('f-weekday').value);
+    if (cycles.includes('monthly')) payload.trigger_day = parseInt(document.getElementById('f-monthday').value);
+  } else {
+    const ds = document.getElementById('f-fixed-start').value.replace(/-/g,'');
+    const de = document.getElementById('f-fixed-end').value.replace(/-/g,'');
+    if (!ds || !de) { alert('请选择固定导出的日期范围'); return; }
+    payload.fixed_date_start = ds;
+    payload.fixed_date_end = de;
+  }
+
+  const btn = document.getElementById('save-task-btn');
+  btn.disabled = true; btn.textContent = '创建中...';
+  try {
+    const resp = await fetch('/api/export-tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer demo' },
+      body: JSON.stringify(payload),
+    });
+    if (!resp.ok) { const e = await resp.json(); throw new Error(e.detail || '创建失败'); }
+    document.getElementById('task-modal').style.display = 'none';
+    showToast(exportType === 'fixed' ? '✅ 任务已创建，正在生成文件，请稍后在下载中心查看' : '✅ 定时导出任务已创建');
+    loadExportTasks();
+    if (exportType === 'fixed') {
+      setTimeout(() => { switchDownloadTab('records'); loadDownloadRecords(); }, 1500);
+    }
+  } catch (e) {
+    showToast('❌ ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '创建任务';
+  }
+}
+
+// ===== 导出记录表格 =====
+const STATUS_REC = { ready:{cls:'badge-done',label:'可下载'}, failed:{cls:'badge-failed',label:'生成失败'}, pending:{cls:'badge-running',label:'生成中'} };
+function renderRecordTable() {
+  const tbody = document.getElementById('record-tbody'); tbody.innerHTML='';
+  if (!exportRecordsCache.length) { tbody.innerHTML=`<tr><td colspan="8" class="no-data">暂无导出记录</td></tr>`; return; }
+  exportRecordsCache.forEach((r,i) => {
+    const s = STATUS_REC[r.status] || STATUS_REC.pending;
+    const dateRange = r.date_start ? `${r.date_start}~${r.date_end}` : '—';
+    const applyTime = r.created_at ? new Date(r.created_at*1000).toLocaleString('zh-CN') : '—';
+    const readyTime = r.ready_at ? new Date(r.ready_at*1000).toLocaleString('zh-CN') : '—';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i+1}</td>
+      <td style="max-width:200px;white-space:normal;font-size:12px">${escHtml(r.file_name)}</td>
+      <td>${escHtml(r.report_title)}</td>
+      <td style="font-size:12px;color:#555">${dateRange}</td>
+      <td style="color:#888;font-size:12px">${applyTime}</td>
+      <td style="color:#888;font-size:12px">${r.status==='ready' ? readyTime : '—'}</td>
+      <td><span class="badge ${s.cls}">${s.label}</span></td>
+      <td>
+        ${r.status==='ready' ? `<span class="tbl-action" onclick="downloadFile('${r.id}','${escHtml(r.file_name)}')">下载</span>` : ''}
+        ${r.status==='pending' ? `<span class="tbl-action" onclick="loadDownloadRecords()">刷新</span>` : ''}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+function downloadFile(id, filename) {
+  const a = document.createElement('a');
+  a.href = `/api/downloads/${id}/file`;
+  a.download = filename;
+  // 需要携带 token
+  fetch(`/api/downloads/${id}/file`, { headers: { Authorization: 'Bearer demo' } })
+    .then(r => r.blob())
+    .then(blob => {
+      const url = URL.createObjectURL(blob);
+      a.href = url; document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+    }).catch(() => showToast('下载失败'));
+}
+
+// ===== 系统报表路由 =====
+const REPORT_ROUTES = {
+  '收入优惠统计': '/reports/income-discount.html',
+};
+// ===== 报表详情页 =====
+let currentReportId = null;
+let allColumns = [];       // 当前报表全部列
+let visibleColumns = [];   // 当前显示的列
+
+async function openSavedReport(reportId) {
+  currentReportId = reportId;
+  // 切换到报表详情tab
+  switchReportTab('detail');
+  switchSection('report');
+
+  const token = localStorage.getItem('demo_token')||'demo';
+  document.getElementById('rd-loading').style.display = 'block';
+  document.getElementById('rd-table').style.display = 'none';
+  document.getElementById('rd-summary').textContent = '';
+
+  try {
+    const resp = await fetch(`/api/reports/${reportId}`, {headers:{Authorization:`Bearer ${token}`}});
+    if (!resp.ok) throw new Error('加载失败');
+    const r = await resp.json();
+
+    document.getElementById('rd-title').textContent = r.title || '报表详情';
+    document.getElementById('rd-desc').textContent = r.description || '';
+
+    // 初始化列
+    allColumns = r.columns || [];
+    visibleColumns = [...allColumns];
+    renderFieldCheckboxes();
+
+    // 初始化门店筛选
+    renderPoiSelect();
+
+    // 初始化日期（从SQL里提取，或用默认值）
+    const dateMatch = r.sql && r.sql.match(/stlmnt_datekey\s+BETWEEN\s+'(\d{8})'\s+AND\s+'(\d{8})'/i);
+    if (dateMatch) {
+      const ds = dateMatch[1]; const de = dateMatch[2];
+      document.getElementById('rd-date-start').value = ds.slice(0,4)+'-'+ds.slice(4,6)+'-'+ds.slice(6,8);
+      document.getElementById('rd-date-end').value = de.slice(0,4)+'-'+de.slice(4,6)+'-'+de.slice(6,8);
+    } else {
+      const now = new Date();
+      const y = now.getMonth()===0 ? now.getFullYear()-1 : now.getFullYear();
+      const m = now.getMonth()===0 ? 12 : now.getMonth();
+      const pad = n => String(n).padStart(2,'0');
+      const lastDay = new Date(y, m, 0).getDate();
+      document.getElementById('rd-date-start').value = `${y}-${pad(m)}-01`;
+      document.getElementById('rd-date-end').value = `${y}-${pad(m)}-${pad(lastDay)}`;
+    }
+
+    renderReportTable(r.columns, r.rows);
+  } catch(e) {
+    document.getElementById('rd-loading').textContent = '❌ ' + e.message;
+  }
+}
+
+function closeReportDetail() {
+  currentReportId = null;
+  switchReportTab('mine');
+}
+
+function renderPoiSelect() {
+  const sel = document.getElementById('rd-poi-select');
+  sel.innerHTML = '';
+  const pois = [
+    {id:601858077,name:'原阳新博大店'},{id:602201025,name:'罗山西亚美悦店'},{id:602129828,name:'平舆店'},
+    {id:602142958,name:'息县西亚丽宝店'},{id:602339033,name:'临颍亿洲城店'},{id:602208386,name:'光山西亚城市广场店'},
+    {id:602252457,name:'云梦雅斯广场店'},{id:602350898,name:'淅川万悦汇店'},{id:602513009,name:'正阳锐思广场店'},
+    {id:602262974,name:'武陟360店'},{id:602454124,name:'社旗锦汇城店'},{id:602452249,name:'泌阳百家广场店'},
+    {id:602653069,name:'钟祥雅思广场店'},{id:602665354,name:'许昌吾悦广场店'},{id:602663390,name:'汝州绿洲城店'},
+    {id:602622551,name:'太康青年里店'},{id:602622605,name:'兰考华联城店'},{id:602635607,name:'鄢陵大乐城店'}
+  ];
+  pois.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id; opt.textContent = p.name;
+    sel.appendChild(opt);
+  });
+}
+
+function renderFieldCheckboxes() {
+  const wrap = document.getElementById('rd-field-checkboxes');
+  wrap.innerHTML = '';
+  allColumns.forEach(col => {
+    const label = document.createElement('label');
+    label.style.cssText = 'display:flex;align-items:center;gap:4px;font-size:12px;color:#555;cursor:pointer;background:#fff;border:1px solid #ddd;border-radius:4px;padding:3px 8px';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.value = col;
+    cb.checked = visibleColumns.includes(col);
+    cb.onchange = () => {
+      if (cb.checked) { if (!visibleColumns.includes(col)) visibleColumns.push(col); }
+      else { visibleColumns = visibleColumns.filter(c => c !== col); }
+    };
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(col));
+    wrap.appendChild(label);
+  });
+}
+
+function selectAllFields(checked) {
+  visibleColumns = checked ? [...allColumns] : [];
+  document.querySelectorAll('#rd-field-checkboxes input[type=checkbox]').forEach(cb => cb.checked = checked);
+}
+
+function toggleFieldPanel() {
+  const panel = document.getElementById('rd-field-panel');
+  const btn = document.getElementById('field-panel-toggle');
+  if (panel.style.display === 'none') {
+    panel.style.display = 'block'; btn.textContent = '收起 ▲';
+  } else {
+    panel.style.display = 'none'; btn.textContent = '展开 ▼';
+  }
+}
+
+async function applyReportFilters() {
+  if (!currentReportId) return;
+  const token = localStorage.getItem('demo_token')||'demo';
+  const ds = document.getElementById('rd-date-start').value.replace(/-/g,'');
+  const de = document.getElementById('rd-date-end').value.replace(/-/g,'');
+  const sel = document.getElementById('rd-poi-select');
+  const poiIds = Array.from(sel.selectedOptions).map(o => parseInt(o.value));
+
+  document.getElementById('rd-loading').textContent = '查询中，请稍候...';
+  document.getElementById('rd-loading').style.display = 'block';
+  document.getElementById('rd-table').style.display = 'none';
+
+  try {
+    const resp = await fetch(`/api/reports/${currentReportId}/query`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', Authorization:`Bearer ${token}`},
+      body: JSON.stringify({
+        date_start: ds||null, date_end: de||null,
+        poi_ids: poiIds.length ? poiIds : null,
+        visible_columns: visibleColumns.length ? visibleColumns : null
+      })
+    });
+    if (!resp.ok) throw new Error((await resp.json()).detail||'查询失败');
+    const r = await resp.json();
+    renderReportTable(r.columns, r.rows);
+  } catch(e) {
+    document.getElementById('rd-loading').textContent = '❌ '+e.message;
+  }
+}
+
+function resetReportFilters() {
+  document.getElementById('rd-date-start').value = '';
+  document.getElementById('rd-date-end').value = '';
+  const sel = document.getElementById('rd-poi-select');
+  Array.from(sel.options).forEach(o => o.selected = false);
+  visibleColumns = [...allColumns];
+  renderFieldCheckboxes();
+}
+
+async function refreshReportDetail() {
+  if (currentReportId) openSavedReport(currentReportId);
+}
+
+function renderReportTable(columns, rows) {
+  document.getElementById('rd-loading').style.display = 'none';
+  const table = document.getElementById('rd-table');
+  const thead = document.getElementById('rd-thead');
+  const tbody = document.getElementById('rd-tbody');
+
+  // 列过滤
+  let showCols = visibleColumns.length ? visibleColumns : columns;
+  const colIdx = showCols.map(c => columns.indexOf(c)).filter(i => i >= 0);
+  const dispCols = colIdx.map(i => columns[i]);
+
+  thead.innerHTML = '<tr>' + dispCols.map(c =>
+    `<th style="background:#f5f5f5;padding:8px 12px;text-align:left;font-size:12px;color:#555;border-bottom:2px solid #e8e8e8;white-space:nowrap">${escHtml(c)}</th>`
+  ).join('') + '</tr>';
+
+  tbody.innerHTML = rows.map((row, ri) =>
+    '<tr style="background:' + (ri%2===0?'#fff':'#fafafa') + '">' +
+    colIdx.map(i =>
+      `<td style="padding:7px 12px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0;white-space:nowrap">${escHtml(row[i]??'--')}</td>`
+    ).join('') + '</tr>'
+  ).join('');
+
+  table.style.display = 'table';
+  document.getElementById('rd-summary').textContent = `共 ${rows.length} 条数据`;
+}
+
+function openSystemReport(name) {
+  const url = REPORT_ROUTES[name];
+  if (url) { window.open(url, '_blank'); }
+  else { alert(`报表「${name}」正在建设中，敬请期待`); }
+}
+
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function getQuickSqls(tab) {
+  const map = {
+    order: [
+      { label:'今日订单汇总', sql:"SELECT COUNT(*) as 订单数, ROUND(SUM(biz_amt)/100.0,2) as 营业额, ROUND(SUM(income_amt)/100.0,2) as 营业收入 FROM mart_oprms.app_bizrpt_trade_ord_detail_ss_daily WHERE partition_date='{{date}}' AND tenant_id={{tid}}" },
+      { label:'按来源统计营业额', sql:"SELECT order_source_enum, COUNT(*) as 订单数, ROUND(SUM(biz_amt)/100.0,2) as 营业额 FROM mart_oprms.app_bizrpt_trade_ord_detail_ss_daily WHERE partition_date='{{date}}' AND tenant_id={{tid}} GROUP BY 1 ORDER BY 3 DESC" },
+      { label:'会员 vs 非会员', sql:"SELECT is_mmbr, COUNT(*) as 订单数, ROUND(AVG(biz_amt)/100.0,2) as 客单价 FROM mart_oprms.app_bizrpt_trade_ord_detail_ss_daily WHERE partition_date='{{date}}' AND tenant_id={{tid}} GROUP BY 1" },
+    ],
+    dish: [
+      { label:'菜品销量TOP10', sql:"SELECT spu_name, SUM(sku_cnt) as 销量, ROUND(SUM(sku_income_amt)/100.0,2) as 收入 FROM mart_oprms.app_bizrpt_ord_item_detail_ss_daily WHERE partition_date='{{date}}' AND tenant_id={{tid}} GROUP BY 1 ORDER BY 2 DESC LIMIT 10" },
+      { label:'套餐vs单品', sql:"SELECT is_combo, COUNT(*) as 明细数, ROUND(SUM(sku_income_amt)/100.0,2) as 收入 FROM mart_oprms.app_bizrpt_ord_item_detail_ss_daily WHERE partition_date='{{date}}' AND tenant_id={{tid}} GROUP BY 1" },
+      { label:'退菜统计TOP10', sql:"SELECT spu_name, SUM(sku_cnt) as 退菜数量 FROM mart_oprms.app_bizrpt_ord_item_detail_ss_daily WHERE partition_date='{{date}}' AND tenant_id={{tid}} AND biz_type_enum=2 GROUP BY 1 ORDER BY 2 DESC LIMIT 10" },
+    ],
+    payment: [
+      { label:'按支付方式汇总', sql:"SELECT pay_mode_name, COUNT(*) as 笔数, ROUND(SUM(income_amt)/100.0,2) as 收入金额 FROM mart_oprms.app_bizrpt_all_payment_detail_ss_daily WHERE partition_date='{{date}}' AND tenant_id={{tid}} AND pay_direction=1 GROUP BY 1 ORDER BY 3 DESC" },
+      { label:'优惠金额汇总', sql:"SELECT pay_mode_name, ROUND(SUM(cmpgn_amt)/100.0,2) as 优惠金额, SUM(used_cnt) as 核销张数 FROM mart_oprms.app_bizrpt_all_payment_detail_ss_daily WHERE partition_date='{{date}}' AND tenant_id={{tid}} GROUP BY 1" },
+      { label:'收款 vs 退款', sql:"SELECT pay_direction, COUNT(*) as 笔数, ROUND(SUM(pay_amt)/100.0,2) as 金额 FROM mart_oprms.app_bizrpt_all_payment_detail_ss_daily WHERE partition_date='{{date}}' AND tenant_id={{tid}} GROUP BY 1" },
+    ],
+    campaign: [
+      { label:'优惠活动汇总', sql:"SELECT cmpgn_show_mode_name, COUNT(*) as 使用次数, ROUND(SUM(cmpgn_amt)/100.0,2) as 优惠金额 FROM mart_oprms.app_bizrpt_cmpgn_detail_ss_daily WHERE partition_date='{{date}}' AND tenant_id={{tid}} GROUP BY 1 ORDER BY 3 DESC" },
+      { label:'活动类型分布', sql:"SELECT cmpgn_type_enum, COUNT(*) as 次数, ROUND(SUM(cmpgn_amt)/100.0,2) as 优惠金额 FROM mart_oprms.app_bizrpt_cmpgn_detail_ss_daily WHERE partition_date='{{date}}' AND tenant_id={{tid}} GROUP BY 1" },
+    ],
+  };
+  return map[tab] || [];
+}
+
+function useQuickSql(sql) {
+  const today = new Date().toISOString().slice(0,10);
+  const filled = sql.replace(/\{\{date\}\}/g, today).replace(/\{\{tid\}\}/g, '11103980');
+  switchSection('chat');
+  newConversation();
+  setTimeout(() => {
+    const input = document.getElementById('chat-input');
+    if (input) { input.value = filled; input.style.height = 'auto'; input.style.height = input.scrollHeight+'px'; input.focus(); }
+  }, 100);
+}
+
+function showToast(msg) {
+  let t = document.getElementById('toast-msg');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast-msg';
+    t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;z-index:9999;transition:opacity 0.3s';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg; t.style.opacity='1';
+  setTimeout(() => { t.style.opacity='0'; }, 1800);
+}
+
+
+init();
+</script>
+</body>
+</html>
