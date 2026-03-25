@@ -258,6 +258,17 @@
 
 <!-- ===== 会话面板 ===== -->
 <div class="panel" id="panel-chat">
+  <div class="tenant-selector">
+    <div class="tenant-label">🏢 当前租户</div>
+    <select class="tenant-select" id="tenant-select" onchange="onTenantChange(this.value)">
+      <option value="t001">海底捞餐饮集团</option>
+      <option value="t002">西贝莜面餐饮</option>
+      <option value="t003">老乡鸡连锁</option>
+      <option value="t004">外婆家餐饮</option>
+      <option value="t005">蜀大侠火锅</option>
+    </select>
+    <div id="tenant-badge" class="tenant-badge">tenantId: t001 · 直营+加盟</div>
+  </div>
   <div class="panel-header">
     <div class="panel-title">会话管理</div>
     <button class="btn-new" onclick="newConversation()">✏️ 新建对话</button>
@@ -1461,14 +1472,89 @@ async function parseExcelFrontend(file) {
   };
 }
 
+// ===== 租户 Mock 数据库 =====
+const TENANT_DB = {
+  t001: {
+    name: '海底捞餐饮集团', type: '直营+加盟', tenantId: 't001',
+    stores: [['海底捞(望京店)','BJ001'],['海底捞(三里屯店)','BJ002'],['海底捞(陆家嘴店)','SH001'],['海底捞(天府广场店)','CD001'],['海底捞(西湖店)','HZ001']],
+    dishes: [['毛肚','火锅食材',68],['虾滑','火锅食材',42],['肥牛','火锅食材',58],['鸭血','火锅食材',28],['招牌冰激凌','甜点',12],['海底捞套餐A','套餐',198],['鸭肠','火锅食材',38],['蟹棒','火锅食材',32]],
+    cities: ['北京','上海','成都','杭州','深圳'],
+  },
+  t002: {
+    name: '西贝莜面餐饮', type: '直营', tenantId: 't002',
+    stores: [['西贝莜面村(三里屯店)','BJ001'],['西贝莜面村(国贸店)','BJ002'],['西贝莜面村(南京西路店)','SH001'],['西贝莜面村(万象城店)','SZ001'],['西贝莜面村(太古里店)','CD001']],
+    dishes: [['招牌羊排','主菜',128],['牛肉莜面','主食',38],['黄馍馍','主食',18],['手抓饭','主食',48],['羊蝎子','主菜',98],['驴肉黄面','主食',42],['羊肉串','小食',25],['酸奶','饮品',15]],
+    cities: ['北京','上海','深圳','成都','西安'],
+  },
+  t003: {
+    name: '老乡鸡连锁', type: '加盟为主', tenantId: 't003',
+    stores: [['老乡鸡(南京西路店)','SH001'],['老乡鸡(淮海路店)','SH002'],['老乡鸡(徐汇店)','SH003'],['老乡鸡(合肥政务区店)','HF001'],['老乡鸡(武汉光谷店)','WH001']],
+    dishes: [['招牌土鸡汤','主菜',38],['香辣鸡腿饭','套餐',32],['农家小炒肉','小炒',28],['土豆烧鸡','主菜',35],['梅菜扣肉饭','套餐',30],['老母鸡汤面','主食',25],['卤蛋','小食',3],['豆腐脑','早餐',8]],
+    cities: ['上海','合肥','武汉','南京','杭州'],
+  },
+  t004: {
+    name: '外婆家餐饮', type: '直营', tenantId: 't004',
+    stores: [['外婆家(来福士店)','SH001'],['外婆家(西湖银泰店)','HZ001'],['外婆家(龙湖时代店)','CD001'],['外婆家(万象天地店)','SZ001'],['外婆家(新天地店)','SH002']],
+    dishes: [['东坡肘子','主菜',98],['龙井虾仁','主菜',88],['外婆红烧肉','主菜',56],['西湖醋鱼','主菜',78],['笋干老鸭煲','主菜',68],['油焖春笋','蔬菜',35],['糟溜鱼片','主菜',62],['桂花糯米藕','甜点',28]],
+    cities: ['上海','杭州','成都','深圳','北京'],
+  },
+  t005: {
+    name: '蜀大侠火锅', type: '加盟', tenantId: 't005',
+    stores: [['蜀大侠(太古里店)','CD001'],['蜀大侠(IFS店)','CD002'],['蜀大侠(春熙路店)','CD003'],['蜀大侠(重庆解放碑店)','CQ001'],['蜀大侠(天津滨海店)','TJ001']],
+    dishes: [['毛肚','火锅食材',58],['黄喉','火锅食材',48],['脑花','特色食材',35],['牛肉','火锅食材',68],['蜀大侠特调锅底','锅底',38],['鸭肠','火锅食材',45],['招牌豆花','甜点',15],['冰粉','甜点',12]],
+    cities: ['成都','重庆','天津','武汉','西安'],
+  },
+};
+let currentTenantId = 't001';
+
+function onTenantChange(tid) {
+  currentTenantId = tid;
+  const t = TENANT_DB[tid];
+  if (!t) return;
+  const badge = document.getElementById('tenant-badge');
+  if (badge) badge.textContent = `tenantId: ${t.tenantId} · ${t.type}`;
+  // 新建对话时带上租户上下文
+  const conv = getActiveConv();
+  if (conv && conv.messages.length === 0) {
+    // 空对话直接更新欢迎语
+    renderWelcome(tid);
+  }
+  // toast 提示
+  showTenantToast(t.name);
+}
+
+function showTenantToast(name) {
+  let el = document.getElementById('tenant-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'tenant-toast';
+    el.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:8px 20px;border-radius:20px;font-size:13px;z-index:9999;transition:opacity 0.3s;pointer-events:none';
+    document.body.appendChild(el);
+  }
+  el.textContent = `已切换到：${name}`;
+  el.style.opacity = '1';
+  setTimeout(() => { el.style.opacity = '0'; }, 2000);
+}
+
+function renderWelcome(tid) {
+  const t = TENANT_DB[tid] || TENANT_DB['t001'];
+  const inner = document.getElementById('messages-inner');
+  if (!inner) return;
+  inner.innerHTML = `
+    <div style="text-align:center;padding:40px 20px;color:#aaa">
+      <div style="font-size:32px;margin-bottom:12px">🤖</div>
+      <div style="font-size:15px;font-weight:600;color:#555;margin-bottom:6px">${t.name} · AI 取数助手</div>
+      <div style="font-size:13px;color:#aaa;margin-bottom:4px">tenantId: <code style="background:#f0f0f0;padding:1px 6px;border-radius:4px;color:#FF6900">${t.tenantId}</code> · ${t.type}</div>
+      <div style="font-size:12px;color:#ccc;margin-top:12px">上传 Excel 模板或直接输入问题开始</div>
+    </div>`;
+}
+
 function mockBuildReportData(analyzeRes, userDesc) {
   const { headers, isChannelTemplate, channels } = analyzeRes;
-  const cities = ['北京','上海','广州','成都','杭州'];
-  const stores = [['海底捞(望京店)','BJ001'],['西贝莜面村(三里屯店)','BJ002'],
-    ['老乡鸡(南京西路店)','SH001'],['外婆家(来福士店)','SH002'],['蜀大侠(太古里店)','CD001']];
-  const dishes = [['毛肚','火锅食材',68],['虾滑','火锅食材',42],['牛肉莜面','主食',38],
-    ['招牌羊排','主菜',128],['东坡肘子','主菜',98],['招牌烤鱼','主菜',88],
-    ['秘制红烧肉','主菜',56],['青椒炒肉','小炒',32]];
+  const tenant = TENANT_DB[currentTenantId] || TENANT_DB['t001'];
+  const cities = tenant.cities;
+  const stores = tenant.stores;
+  const dishes = tenant.dishes;
 
   const rows = dishes.map(([name, cat, price], di) => {
     const store = stores[di % stores.length];
