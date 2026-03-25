@@ -259,9 +259,9 @@
 <!-- ===== 会话面板 ===== -->
 <div class="panel" id="panel-chat">
   <div class="tenant-selector">
-    <div class="tenant-label">🏢 租户 ID</div>
+    <div class="tenant-label">🏢 集团号</div>
     <div style="display:flex;gap:6px;align-items:center">
-      <input id="tenant-input" type="text" placeholder="输入 tenant_id" value="t001"
+      <input id="tenant-input" type="text" placeholder="输入连锁编号" value="G001"
         style="flex:1;padding:7px 10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
                border-radius:8px;color:#fff;font-size:12px;font-family:monospace;outline:none"
         onkeydown="if(event.key==='Enter')applyTenantInput()"
@@ -275,7 +275,7 @@
         onmouseleave="this.style.background='rgba(255,105,0,0.2)'"
       >确认</button>
     </div>
-    <div id="tenant-badge" class="tenant-badge" style="margin-top:6px">tenantId: t001 · 演示数据</div>
+    <div id="tenant-badge" class="tenant-badge" style="margin-top:6px">集团号: G001 · 演示数据</div>
   </div>
   <div class="panel-header">
     <div class="panel-title">会话管理</div>
@@ -1693,6 +1693,20 @@ async function parseExcelFrontend(file) {
 }
 
 // ===== 租户 Mock 数据库 =====
+// ─────────────────────────────────────────────────────────────
+// GROUP_NO_MAP: 集团号（连锁编号）→ tenantId
+// 商户填写集团号，系统自动解析到对应的 tenantId
+// ─────────────────────────────────────────────────────────────
+const GROUP_NO_MAP = {
+  'G001': 't001',   // 海底捞餐饮集团
+  'G002': 't002',   // 西贝莜面餐饮
+  'G003': 't003',   // 老乡鸡连锁
+  'G004': 't004',   // 外婆家餐饮
+  'G005': 't005',   // 蜀大侠火锅
+};
+// 反向映射：tenantId → 集团号（用于 badge 显示）
+const TENANT_TO_GROUP = Object.fromEntries(Object.entries(GROUP_NO_MAP).map(([g,t])=>[t,g]));
+
 const TENANT_DB = {
   t001: {
     name: '海底捞餐饮集团', type: '直营+加盟', tenantId: 't001',
@@ -1764,12 +1778,17 @@ function getOrGenerateTenant(tid) {
 }
 
 let currentTenantId = 't001';
+let currentGroupNo = 'G001';   // 用户输入的集团号（连锁编号）
 
 function applyTenantInput() {
   const input = document.getElementById('tenant-input');
   if (!input) return;
-  const tid = input.value.trim();
-  if (!tid) return;
+  const raw = input.value.trim().toUpperCase();
+  if (!raw) return;
+  // 集团号 → tenantId 转换
+  const tid = GROUP_NO_MAP[raw] || raw;
+  // 记录用户输入的集团号（用于 badge 展示）
+  currentGroupNo = raw;
   onTenantChange(tid);
 }
 
@@ -1777,11 +1796,11 @@ function onTenantChange(tid) {
   currentTenantId = tid;
   const t = TENANT_DB[tid];
   const badge = document.getElementById('tenant-badge');
+  const groupNo = currentGroupNo || TENANT_TO_GROUP[tid] || tid;
   if (t) {
-    if (badge) badge.textContent = `tenantId: ${t.tenantId} · ${t.type}`;
+    if (badge) badge.textContent = `集团号: ${groupNo} · ${t.type}`;
   } else {
-    // 自定义 tenant_id，非预置租户
-    if (badge) badge.textContent = `tenantId: ${tid} · 自定义租户（演示数据）`;
+    if (badge) badge.textContent = `集团号: ${groupNo} · 演示数据`;
   }
   const conv = getActiveConv();
   if (conv && conv.messages.length === 0) {
@@ -1813,7 +1832,7 @@ function renderWelcome(tid) {
     <div class="empty-state" id="empty-state">
       <div style="font-size:32px;margin-bottom:12px">🤖</div>
       <div style="font-size:15px;font-weight:600;color:#555;margin-bottom:6px">${displayName} · AI 取数助手</div>
-      <div style="font-size:13px;color:#aaa;margin-bottom:4px">tenantId: <code style="background:#f0f0f0;padding:1px 6px;border-radius:4px;color:#FF6900">${tid}</code> · ${displayType}</div>
+      <div style="font-size:13px;color:#aaa;margin-bottom:4px">集团号: <code style="background:#f0f0f0;padding:1px 6px;border-radius:4px;color:#FF6900">${currentGroupNo||TENANT_TO_GROUP[tid]||tid}</code> · ${displayType}</div>
       <div style="font-size:12px;color:#ccc;margin-top:12px">上传 Excel 模板或直接输入问题开始</div>
     </div>`;
 }
