@@ -758,83 +758,29 @@ export default function App() {
       let res: any
 
       if (file && file.name.match(/\.(xlsx|xls)$/i)) {
-        // ── Step 1: analyze（含自定义维度解析）──
-        const formData1 = new FormData()
-        formData1.append('file', file)
-        const analyzeResp = await fetch('/api/excel/analyze', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData1,
-        })
-        if (!analyzeResp.ok) throw new Error(await analyzeResp.text())
-        const analyzed = await analyzeResp.json()
+        // ── Mock模式：纯前端解析Excel，无需后端 ──
+        const { parseExcelHeaders, mockBuildReport } = await import('./mock/excelParser')
+        const parsed = await parseExcelHeaders(file)
 
-        // ── 如果有自定义维度，弹出确认框（先暂停主流程，等用户确认后再继续）──
-        const dimsData: DimensionsData = analyzed.dimensions
-        if (dimsData?.dimensions?.length > 0) {
-          // 先把"正在分析"消息加入对话
-          const analyzingMsg: Message = {
-            id: ++msgIdCounter,
-            role: 'assistant',
-            content: `📋 已识别 ${analyzed.headers?.length || 0} 个字段，匹配率 ${Math.round((analyzed.match_rate || 0) * 100)}%。\n我在你的 Excel 中发现了自定义维度定义，请确认解析结果。`,
-          }
-          updateConv(activeId, [...newMsgs, analyzingMsg])
-          setLoading(false)
-          setDimensionDialog(dimsData)
-          return  // 暂停，等待用户确认维度
+        const matchPct = Math.round(parsed.match_rate * 100)
+        const channelTip = parsed.isChannelTemplate
+          ? `\n检测到自定义渠道模板，包含渠道：${parsed.channels.join('、')}`
+          : ''
+        const unmappedTip = parsed.unmapped.length > 0
+          ? `\n⚠️ 未能映射字段：${parsed.unmapped.join('、')}（将按原名输出）`
+          : ''
+
+        const analyzingMsg: Message = {
+          id: ++msgIdCounter,
+          role: 'assistant',
+          content: `📋 已识别 ${parsed.rawHeaders.length} 个字段，匹配率 ${matchPct}%${channelTip}${unmappedTip}\n\n正在生成示例数据...`,
         }
+        updateConv(activeId, [...newMsgs, analyzingMsg])
 
-        // ── Step 2: build-report（提交后异步轮询）──
-        const buildResp = await fetch('/api/excel/build-report', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            headers: analyzed.headers,
-            mapped: analyzed.mapped,
-            unmapped: analyzed.unmapped,
-            user_description: text || '',
-          }),
-        })
-        if (!buildResp.ok) throw new Error(await buildResp.text())
-        const buildInit = await buildResp.json()
+        // 短暂延迟模拟查询感
+        await new Promise(r => setTimeout(r, 800))
 
-        // 若后端返回 task_id，进入轮询模式（菜品表等大查询）
-        if (buildInit.task_id) {
-          const taskId = buildInit.task_id
-          const maxWait = 900_000  // 最多等 15 分钟
-          const pollInterval = 10_000  // 每 10s 轮询一次
-          const pollStart = Date.now()
-          while (Date.now() - pollStart < maxWait) {
-            await new Promise(r => setTimeout(r, pollInterval))
-            const pollResp = await fetch(`/api/excel/build-report/${taskId}`, {
-              headers: { Authorization: `Bearer ${token}` },
-            })
-            if (!pollResp.ok) throw new Error(await pollResp.text())
-            const pollData = await pollResp.json()
-            if (pollData.status === 'done') {
-              res = {
-                type: 'data',
-                report_title: pollData.report_title,
-                sql: pollData.sql,
-                columns: pollData.columns,
-                rows: pollData.rows,
-                total: pollData.total,
-                chart_type: pollData.chart_type,
-                date_hint: pollData.date_hint,
-              }
-              break
-            } else if (pollData.status === 'error') {
-              throw new Error(pollData.error || '报表生成失败')
-            }
-            // status === 'running'，继续等
-          }
-          if (!res) throw new Error('报表生成超时（超过15分钟），请稍后重试')
-        } else {
-          res = buildInit
-        }
+        res = mockBuildReport(parsed, text || '')
       } else {
         const history = newMsgs.slice(-6).map(m => ({
           role: m.role,
