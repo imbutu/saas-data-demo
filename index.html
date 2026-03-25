@@ -245,6 +245,12 @@
   <div class="nav-item" id="nav-datasource" onclick="switchSection('datasource')" title="数据源">
     <span>🗄️</span><span class="nav-label">数据源</span>
   </div>
+  <div class="nav-item" id="nav-metrics" onclick="switchSection('metrics')" title="指标管理">
+    <span>📐</span><span class="nav-label">指标</span>
+  </div>
+  <div class="nav-item" id="nav-dimension" onclick="switchSection('dimension')" title="维度管理">
+    <span>🏷️</span><span class="nav-label">维度</span>
+  </div>
   <div class="nav-item" id="nav-download" onclick="switchSection('download')" title="下载中心">
     <span>⬇️</span><span class="nav-label">下载</span>
   </div>
@@ -317,6 +323,52 @@
     </div>
     <div class="dl-menu-item" id="dsmenu-campaign" onclick="switchDsTab('campaign')">
       <span class="dl-menu-icon">🎫</span>优惠数据
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-metrics" style="display:none">
+  <div class="panel-header"><div class="panel-title">指标管理</div></div>
+  <div class="panel-list" style="padding:8px">
+    <div class="ds-cat-label">业务指标</div>
+    <div class="dl-menu-item active" id="mtmenu-order" onclick="switchMetricsTab('order')">
+      <span class="dl-menu-icon">🧾</span>订单指标
+    </div>
+    <div class="dl-menu-item" id="mtmenu-dish" onclick="switchMetricsTab('dish')">
+      <span class="dl-menu-icon">🍽️</span>菜品指标
+    </div>
+    <div class="dl-menu-item" id="mtmenu-payment" onclick="switchMetricsTab('payment')">
+      <span class="dl-menu-icon">💳</span>支付指标
+    </div>
+    <div class="dl-menu-item" id="mtmenu-member" onclick="switchMetricsTab('member')">
+      <span class="dl-menu-icon">👤</span>会员指标
+    </div>
+    <div class="ds-cat-label" style="margin-top:12px">自定义</div>
+    <div class="dl-menu-item" id="mtmenu-custom" onclick="switchMetricsTab('custom')">
+      <span class="dl-menu-icon">✨</span>自定义指标
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-dimension" style="display:none">
+  <div class="panel-header"><div class="panel-title">维度管理</div></div>
+  <div class="panel-list" style="padding:8px">
+    <div class="ds-cat-label">基础维度</div>
+    <div class="dl-menu-item active" id="dimmenu-store" onclick="switchDimTab('store')">
+      <span class="dl-menu-icon">🏪</span>门店维度
+    </div>
+    <div class="dl-menu-item" id="dimmenu-channel" onclick="switchDimTab('channel')">
+      <span class="dl-menu-icon">📡</span>渠道维度
+    </div>
+    <div class="dl-menu-item" id="dimmenu-dish" onclick="switchDimTab('dish')">
+      <span class="dl-menu-icon">🍽️</span>菜品维度
+    </div>
+    <div class="dl-menu-item" id="dimmenu-payment" onclick="switchDimTab('payment')">
+      <span class="dl-menu-icon">💳</span>结账方式
+    </div>
+    <div class="ds-cat-label" style="margin-top:12px">自定义</div>
+    <div class="dl-menu-item" id="dimmenu-custom" onclick="switchDimTab('custom')">
+      <span class="dl-menu-icon">✨</span>自定义维度
     </div>
   </div>
 </div>
@@ -469,6 +521,88 @@
 <div class="section" id="section-datasource">
   <div id="ds-main" style="flex:1;overflow-y:auto;padding:28px 32px">
     <div id="ds-content"></div>
+  </div>
+</div>
+
+<!-- ===== 指标管理主内容 ===== -->
+<div class="section" id="section-metrics" style="display:none">
+  <div id="mt-main" style="flex:1;overflow-y:auto;padding:28px 32px">
+    <div id="mt-content"></div>
+  </div>
+</div>
+
+<!-- ===== 维度管理主内容 ===== -->
+<div class="section" id="section-dimension" style="display:none">
+  <div id="dim-main" style="flex:1;overflow-y:auto;padding:28px 32px">
+    <div id="dim-content"></div>
+  </div>
+</div>
+
+<!-- 指标管理 Modal -->
+<div class="modal-mask" id="metric-modal" style="display:none" onclick="closeMetricModal(event)">
+  <div class="modal" style="width:480px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">新建自定义指标</span>
+      <button class="modal-close" onclick="closeMetricModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-label">指标名称 <span style="color:#FF6900">*</span></div>
+        <input class="form-input" id="mt-name" placeholder="例如：团购转化率" />
+      </div>
+      <div class="form-row">
+        <div class="form-label">指标含义 <span style="color:#FF6900">*</span></div>
+        <input class="form-input" id="mt-meaning" placeholder="例如：通过团购渠道完成的订单比例" />
+      </div>
+      <div class="form-row">
+        <div class="form-label">计算公式</div>
+        <input class="form-input" id="mt-formula" placeholder="例如：营业收入 / 营业额 * 100%" />
+        <div class="form-hint">可引用的指标：营业额、营业收入、订单量、用餐人数、优惠金额、支付金额...</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-default" onclick="closeMetricModal()">取消</button>
+      <button class="btn-primary" onclick="saveMetric()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 维度管理 Modal -->
+<div class="modal-mask" id="dim-modal" style="display:none" onclick="closeDimModal(event)">
+  <div class="modal" style="width:480px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">新建自定义维度</span>
+      <button class="modal-close" onclick="closeDimModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-label">维度名称 <span style="color:#FF6900">*</span></div>
+        <input class="form-input" id="dim-name" placeholder="例如：用餐类型" />
+      </div>
+      <div class="form-row">
+        <div class="form-label">维度类型 <span style="color:#FF6900">*</span></div>
+        <select class="form-select" id="dim-type">
+          <option value="渠道类">渠道类</option>
+          <option value="餐段类">餐段类</option>
+          <option value="结账类">结账类</option>
+          <option value="菜品类">菜品类</option>
+          <option value="其他">其他</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-label">维度值（逗号分隔）<span style="color:#FF6900">*</span></div>
+        <input class="form-input" id="dim-values" placeholder="例如：团购,非团购" />
+        <div class="form-hint">多个枚举值用英文逗号分隔</div>
+      </div>
+      <div class="form-row">
+        <div class="form-label">说明（选填）</div>
+        <input class="form-input" id="dim-desc" placeholder="例如：区分订单来源渠道" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-default" onclick="closeDimModal()">取消</button>
+      <button class="btn-primary" onclick="saveDimension()">保存</button>
+    </div>
   </div>
 </div>
 
@@ -761,12 +895,29 @@ function init() {
 
 // ===== 切换主 Section =====
 function switchSection(name) {
-  ['chat','report','datasource','download'].forEach(s => {
-    document.getElementById('nav-'+s).classList.toggle('active', s===name);
-    document.getElementById('section-'+s).classList.toggle('active', s===name);
+  ['chat','report','datasource','metrics','dimension','download'].forEach(s => {
+    const navEl = document.getElementById('nav-'+s);
+    if (navEl) navEl.classList.toggle('active', s===name);
+    const secEl = document.getElementById('section-'+s);
+    if (secEl) {
+      // 旧的 section 用 active class，新增的用 display
+      if (s === 'metrics' || s === 'dimension') {
+        secEl.style.display = s===name ? 'flex' : 'none';
+      } else {
+        secEl.classList.toggle('active', s===name);
+      }
+    }
     const panel = document.getElementById('panel-'+s);
     if (panel) panel.style.display = s===name ? 'flex' : 'none';
   });
+  // 切换到指标管理时渲染
+  if (name === 'metrics') {
+    renderMetricsSection(currentMetricsTab);
+  }
+  // 切换到维度管理时渲染
+  if (name === 'dimension') {
+    renderDimSection(currentDimTab);
+  }
 }
 
 // ===== 数据源定义 =====
@@ -2810,6 +2961,399 @@ function showToast(msg) {
   setTimeout(() => { t.style.opacity='0'; }, 1800);
 }
 
+
+// =====================================================================
+// ===== 指标管理 & 维度管理模块 =====
+// =====================================================================
+
+// ── 内置指标定义 ──
+const DS_METRICS_DEFS = {
+  order: [
+    { field:'biz_amt',          name:'营业额',        type:'金额', desc:'含优惠前流水总额' },
+    { field:'income_amt',       name:'营业收入',      type:'金额', desc:'实际收入（扣除优惠）' },
+    { field:'discount_amt',     name:'优惠金额',      type:'金额', desc:'各类优惠减免总额' },
+    { field:'order_cnt',        name:'订单量',        type:'数量', desc:'有效订单总数' },
+    { field:'group_order_cnt',  name:'团购订单量',    type:'数量', desc:'通过团购渠道的订单' },
+    { field:'group_order_rate', name:'团购订单占比',  type:'比率', desc:'团购订单量/总订单量' },
+    { field:'group_income_amt', name:'团购订单收入',  type:'金额', desc:'团购渠道实际收入' },
+    { field:'group_income_rate',name:'团购收入占比',  type:'比率', desc:'团购收入/总收入' },
+    { field:'lunch_biz_amt',    name:'午市营业额',    type:'金额', desc:'午餐时段营业流水' },
+    { field:'lunch_biz_rate',   name:'午市营业额占比',type:'比率', desc:'午市营业额/总营业额' },
+    { field:'dinner_biz_amt',   name:'晚市营业额',    type:'金额', desc:'晚餐时段营业流水' },
+    { field:'dinner_biz_rate',  name:'晚市营业额占比',type:'比率', desc:'晚市营业额/总营业额' },
+    { field:'customer_cnt',     name:'用餐人数',      type:'数量', desc:'实际用餐人次' },
+    { field:'lunch_customer_cnt',name:'午市用餐人数', type:'数量', desc:'午市用餐人次' },
+    { field:'dinner_customer_cnt',name:'晚市用餐人数',type:'数量', desc:'晚市用餐人次' },
+    { field:'per_capita_amt',   name:'人均消费',      type:'金额', desc:'营业额/用餐人数' },
+    { field:'table_turn_rate',  name:'翻台率',        type:'比率', desc:'日均翻台次数' },
+  ],
+  dish: [
+    { field:'spu_name',         name:'菜品名称',      type:'维度', desc:'菜品SKU名称' },
+    { field:'cate_name',        name:'菜品大类',      type:'维度', desc:'菜品一级分类' },
+    { field:'sub_cate_name',    name:'菜品小类',      type:'维度', desc:'菜品二级分类' },
+    { field:'sku_cnt',          name:'菜品销量',      type:'数量', desc:'菜品售出份数' },
+    { field:'sku_total_amt',    name:'菜品销售额',    type:'金额', desc:'菜品售出金额合计' },
+    { field:'sku_income_amt',   name:'菜品实收',      type:'金额', desc:'菜品扣优惠后实收' },
+    { field:'single_cnt',       name:'单点销量',      type:'数量', desc:'单独点餐销量' },
+    { field:'combo_cnt',        name:'关联售卖销量',  type:'数量', desc:'套餐/组合售卖销量' },
+    { field:'cate_income_ratio',name:'大类收入构成',  type:'文本', desc:'各大类收入占比拼接' },
+  ],
+  payment: [
+    { field:'pay_amt',          name:'支付金额',      type:'金额', desc:'实际支付总额' },
+    { field:'pay_cnt',          name:'支付笔数',      type:'数量', desc:'支付交易笔数' },
+    { field:'refund_amt',       name:'退款金额',      type:'金额', desc:'退款总额' },
+    { field:'refund_cnt',       name:'退款笔数',      type:'数量', desc:'退款交易笔数' },
+    { field:'mmbr_pay_amt',     name:'会员支付金额',  type:'金额', desc:'会员身份支付金额' },
+    { field:'mmbr_pay_rate',    name:'会员支付占比',  type:'比率', desc:'会员支付/总支付' },
+    { field:'pay_method_dist',  name:'支付方式构成',  type:'文本', desc:'各支付方式占比拼接' },
+  ],
+  member: [
+    { field:'mmbr_cnt',         name:'会员人数',      type:'数量', desc:'活跃会员总数' },
+    { field:'new_mmbr_cnt',     name:'新增会员',      type:'数量', desc:'当期新注册会员数' },
+    { field:'mmbr_order_cnt',   name:'会员订单量',    type:'数量', desc:'会员身份下单数' },
+    { field:'mmbr_order_rate',  name:'会员订单占比',  type:'比率', desc:'会员订单/总订单' },
+    { field:'mmbr_income_amt',  name:'会员消费金额',  type:'金额', desc:'会员身份消费总额' },
+    { field:'mmbr_card_no',     name:'会员卡号',      type:'维度', desc:'会员唯一标识' },
+    { field:'mmbr_grade_name',  name:'会员等级',      type:'维度', desc:'会员等级名称' },
+    { field:'mmbr_points',      name:'积分余额',      type:'数量', desc:'会员当前积分' },
+  ],
+};
+
+// ── 内置维度定义 ──
+const DS_DIM_DEFS = {
+  store: [
+    { field:'city_name',  name:'城市',     values:'北京/上海/广州/深圳/成都/杭州...' },
+    { field:'store_name', name:'门店名称', values:'各门店全称' },
+    { field:'store_code', name:'机构编码', values:'如 WH001, NJ011' },
+    { field:'store_type', name:'门店类型', values:'直营/加盟/联营' },
+    { field:'area_name',  name:'区域',     values:'华北/华东/华南/西南/华中...' },
+  ],
+  channel: [
+    { field:'channel_name',  name:'渠道名称',   values:'美团外卖/饿了么/到店/团购/堂食' },
+    { field:'order_source',  name:'订单来源',   values:'线上/线下' },
+    { field:'delivery_type', name:'配送类型',   values:'外卖/自取/堂食' },
+  ],
+  dish: [
+    { field:'cate_name',     name:'菜品大类',   values:'主菜/小食/汤/甜点/饮品...' },
+    { field:'sub_cate_name', name:'菜品小类',   values:'各小类名称' },
+    { field:'dept_name',     name:'出品部门',   values:'热厨部/冷厨部/甜品部/吧台部...' },
+    { field:'spu_name',      name:'菜品名称',   values:'各SKU名称' },
+    { field:'price_range',   name:'价格带',     values:'0-30元/30-60元/60-100元/100元+' },
+  ],
+  payment: [
+    { field:'pay_method',    name:'支付方式',   values:'微信/支付宝/现金/银行卡/团购券' },
+    { field:'pay_channel',   name:'支付渠道',   values:'线上/POS机/自助收银' },
+  ],
+};
+
+// ── 状态变量 ──
+let currentMetricsTab = 'order';
+let currentDimTab = 'store';
+
+// ── localStorage 持久化 ──
+function loadCustomMetrics() {
+  try { return JSON.parse(localStorage.getItem('saas_custom_metrics') || '[]'); } catch(e) { return []; }
+}
+function saveCustomMetrics(arr) {
+  localStorage.setItem('saas_custom_metrics', JSON.stringify(arr));
+}
+function loadCustomDimensions() {
+  try { return JSON.parse(localStorage.getItem('saas_custom_dimensions') || '[]'); } catch(e) { return []; }
+}
+function saveCustomDimensions(arr) {
+  localStorage.setItem('saas_custom_dimensions', JSON.stringify(arr));
+}
+
+// ── 指标 Tab 切换 ──
+function switchMetricsTab(tab) {
+  currentMetricsTab = tab;
+  ['order','dish','payment','member','custom'].forEach(t => {
+    const el = document.getElementById('mtmenu-'+t);
+    if (el) el.classList.toggle('active', t===tab);
+  });
+  renderMetricsSection(tab);
+}
+
+// ── 维度 Tab 切换 ──
+function switchDimTab(tab) {
+  currentDimTab = tab;
+  ['store','channel','dish','payment','custom'].forEach(t => {
+    const el = document.getElementById('dimmenu-'+t);
+    if (el) el.classList.toggle('active', t===tab);
+  });
+  renderDimSection(tab);
+}
+
+// ── 渲染指标主内容 ──
+const MT_TAB_LABELS = { order:'订单指标', dish:'菜品指标', payment:'支付指标', member:'会员指标', custom:'自定义指标' };
+const MT_TAB_ICONS  = { order:'🧾', dish:'🍽️', payment:'💳', member:'👤', custom:'✨' };
+const TYPE_COLORS   = { 金额:'#0070f3', 数量:'#7928ca', 比率:'#f5a623', 文本:'#50e3c2', 维度:'#888' };
+
+function renderMetricsSection(tab) {
+  const el = document.getElementById('mt-content');
+  if (!el) return;
+
+  if (tab === 'custom') {
+    const metrics = loadCustomMetrics();
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <div>
+          <h2 style="font-size:18px;font-weight:700;color:#1a1a1a;margin:0 0 4px">✨ 自定义指标</h2>
+          <p style="font-size:13px;color:#888;margin:0">定义业务特有指标，系统将自动识别 Excel 中同名列</p>
+        </div>
+        <button onclick="openMetricModal()" style="background:#FF6900;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">+ 新建指标</button>
+      </div>
+      ${metrics.length === 0 ? `
+        <div style="text-align:center;padding:60px 20px;color:#bbb">
+          <div style="font-size:40px;margin-bottom:12px">📐</div>
+          <div style="font-size:14px;margin-bottom:4px">还没有自定义指标</div>
+          <div style="font-size:12px">点击「新建指标」创建业务特有指标，如「到手率」「净利润率」</div>
+        </div>
+      ` : `
+        <div style="display:grid;gap:12px">
+          ${metrics.map(m => `
+            <div style="background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:16px 20px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
+              <div style="flex:1">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                  <span style="font-size:15px;font-weight:700;color:#1a1a1a">${m.name}</span>
+                  <span style="background:#FF6900;color:#fff;font-size:10px;padding:2px 6px;border-radius:4px">自定义</span>
+                </div>
+                <div style="font-size:13px;color:#555;margin-bottom:4px">${m.meaning || '—'}</div>
+                ${m.formula ? `<div style="font-size:12px;color:#888;font-family:monospace;background:#f8f8f8;padding:4px 8px;border-radius:4px;display:inline-block">= ${m.formula}</div>` : ''}
+              </div>
+              <button onclick="deleteMetric('${m.id}')" style="background:none;border:1px solid #e8e8e8;color:#999;padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;white-space:nowrap">删除</button>
+            </div>
+          `).join('')}
+        </div>
+      `}
+    `;
+    return;
+  }
+
+  const defs = DS_METRICS_DEFS[tab] || [];
+  const label = MT_TAB_LABELS[tab] || tab;
+  const icon = MT_TAB_ICONS[tab] || '📊';
+  el.innerHTML = `
+    <div style="margin-bottom:20px">
+      <h2 style="font-size:18px;font-weight:700;color:#1a1a1a;margin:0 0 4px">${icon} ${label}</h2>
+      <p style="font-size:13px;color:#888;margin:0">共 ${defs.length} 个内置指标，支持在 Excel 模板中直接引用列名</p>
+    </div>
+    <div style="background:#fff;border:1px solid #e8e8e8;border-radius:12px;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:#fafafa;border-bottom:1px solid #e8e8e8">
+            <th style="padding:10px 16px;text-align:left;font-size:12px;color:#888;font-weight:600;width:160px">字段名</th>
+            <th style="padding:10px 16px;text-align:left;font-size:12px;color:#888;font-weight:600;width:120px">中文名</th>
+            <th style="padding:10px 16px;text-align:left;font-size:12px;color:#888;font-weight:600;width:60px">类型</th>
+            <th style="padding:10px 16px;text-align:left;font-size:12px;color:#888;font-weight:600">说明</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${defs.map((d,i) => `
+            <tr style="${i%2===1?'background:#fafafa':''}border-bottom:1px solid #f0f0f0">
+              <td style="padding:10px 16px;font-size:12px;font-family:monospace;color:#555">${d.field}</td>
+              <td style="padding:10px 16px;font-size:13px;font-weight:500;color:#1a1a1a">${d.name}</td>
+              <td style="padding:10px 16px">
+                <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:${(TYPE_COLORS[d.type]||'#888')}20;color:${TYPE_COLORS[d.type]||'#888'};font-weight:500">${d.type}</span>
+              </td>
+              <td style="padding:10px 16px;font-size:12px;color:#666">${d.desc}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ── 渲染维度主内容 ──
+const DIM_TAB_LABELS = { store:'门店维度', channel:'渠道维度', dish:'菜品维度', payment:'结账方式', custom:'自定义维度' };
+const DIM_TAB_ICONS  = { store:'🏪', channel:'📡', dish:'🍽️', payment:'💳', custom:'✨' };
+
+function renderDimSection(tab) {
+  const el = document.getElementById('dim-content');
+  if (!el) return;
+
+  if (tab === 'custom') {
+    const dims = loadCustomDimensions();
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <div>
+          <h2 style="font-size:18px;font-weight:700;color:#1a1a1a;margin:0 0 4px">✨ 自定义维度</h2>
+          <p style="font-size:13px;color:#888;margin:0">定义业务特有维度枚举，如自定义渠道分类、用餐时段等</p>
+        </div>
+        <button onclick="openDimModal()" style="background:#FF6900;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">+ 新建维度</button>
+      </div>
+      ${dims.length === 0 ? `
+        <div style="text-align:center;padding:60px 20px;color:#bbb">
+          <div style="font-size:40px;margin-bottom:12px">🏷️</div>
+          <div style="font-size:14px;margin-bottom:4px">还没有自定义维度</div>
+          <div style="font-size:12px">点击「新建维度」创建业务特有分类，如「团购/非团购」「早市/午市/晚市」</div>
+        </div>
+      ` : `
+        <div style="display:grid;gap:12px">
+          ${dims.map(d => `
+            <div style="background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:16px 20px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
+              <div style="flex:1">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                  <span style="font-size:15px;font-weight:700;color:#1a1a1a">${d.name}</span>
+                  <span style="background:#7928ca20;color:#7928ca;font-size:10px;padding:2px 6px;border-radius:4px">${d.type}</span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px">
+                  ${(d.values||'').split(',').filter(v=>v.trim()).map(v => `
+                    <span style="background:#f0f0f0;color:#555;font-size:12px;padding:2px 8px;border-radius:4px">${v.trim()}</span>
+                  `).join('')}
+                </div>
+                ${d.desc ? `<div style="font-size:12px;color:#aaa;margin-top:4px">${d.desc}</div>` : ''}
+              </div>
+              <button onclick="deleteDimension('${d.id}')" style="background:none;border:1px solid #e8e8e8;color:#999;padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;white-space:nowrap">删除</button>
+            </div>
+          `).join('')}
+        </div>
+      `}
+    `;
+    return;
+  }
+
+  const defs = DS_DIM_DEFS[tab] || [];
+  const label = DIM_TAB_LABELS[tab] || tab;
+  const icon = DIM_TAB_ICONS[tab] || '🏷️';
+  el.innerHTML = `
+    <div style="margin-bottom:20px">
+      <h2 style="font-size:18px;font-weight:700;color:#1a1a1a;margin:0 0 4px">${icon} ${label}</h2>
+      <p style="font-size:13px;color:#888;margin:0">共 ${defs.length} 个基础维度</p>
+    </div>
+    <div style="background:#fff;border:1px solid #e8e8e8;border-radius:12px;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:#fafafa;border-bottom:1px solid #e8e8e8">
+            <th style="padding:10px 16px;text-align:left;font-size:12px;color:#888;font-weight:600;width:140px">字段名</th>
+            <th style="padding:10px 16px;text-align:left;font-size:12px;color:#888;font-weight:600;width:120px">维度名</th>
+            <th style="padding:10px 16px;text-align:left;font-size:12px;color:#888;font-weight:600">枚举值/说明</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${defs.map((d,i) => `
+            <tr style="${i%2===1?'background:#fafafa':''}border-bottom:1px solid #f0f0f0">
+              <td style="padding:10px 16px;font-size:12px;font-family:monospace;color:#555">${d.field}</td>
+              <td style="padding:10px 16px;font-size:13px;font-weight:500;color:#1a1a1a">${d.name}</td>
+              <td style="padding:10px 16px;font-size:12px;color:#666">${d.values}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ── 指标 Modal ──
+function openMetricModal() {
+  document.getElementById('mt-name').value = '';
+  document.getElementById('mt-meaning').value = '';
+  document.getElementById('mt-formula').value = '';
+  document.getElementById('metric-modal').style.display = 'flex';
+}
+function closeMetricModal(e) {
+  if (!e || e.target === document.getElementById('metric-modal')) {
+    document.getElementById('metric-modal').style.display = 'none';
+  }
+}
+function saveMetric() {
+  const name = document.getElementById('mt-name').value.trim();
+  const meaning = document.getElementById('mt-meaning').value.trim();
+  const formula = document.getElementById('mt-formula').value.trim();
+  if (!name) { alert('请输入指标名称'); return; }
+  if (!meaning) { alert('请输入指标含义'); return; }
+  const metrics = loadCustomMetrics();
+  metrics.push({ id: Date.now()+'', name, meaning, formula, createdAt: new Date().toISOString() });
+  saveCustomMetrics(metrics);
+  document.getElementById('metric-modal').style.display = 'none';
+  renderMetricsSection('custom');
+  showToast('自定义指标已保存');
+}
+function deleteMetric(id) {
+  if (!confirm('确认删除该自定义指标？')) return;
+  saveCustomMetrics(loadCustomMetrics().filter(m => m.id !== id));
+  renderMetricsSection('custom');
+  showToast('已删除');
+}
+
+// ── 维度 Modal ──
+function openDimModal() {
+  document.getElementById('dim-name').value = '';
+  document.getElementById('dim-type').value = '渠道类';
+  document.getElementById('dim-values').value = '';
+  document.getElementById('dim-desc').value = '';
+  document.getElementById('dim-modal').style.display = 'flex';
+}
+function closeDimModal(e) {
+  if (!e || e.target === document.getElementById('dim-modal')) {
+    document.getElementById('dim-modal').style.display = 'none';
+  }
+}
+function saveDimension() {
+  const name = document.getElementById('dim-name').value.trim();
+  const type = document.getElementById('dim-type').value;
+  const values = document.getElementById('dim-values').value.trim();
+  const desc = document.getElementById('dim-desc').value.trim();
+  if (!name) { alert('请输入维度名称'); return; }
+  if (!values) { alert('请输入维度值'); return; }
+  const dims = loadCustomDimensions();
+  dims.push({ id: Date.now()+'', name, type, values, desc, createdAt: new Date().toISOString() });
+  saveCustomDimensions(dims);
+  document.getElementById('dim-modal').style.display = 'none';
+  renderDimSection('custom');
+  showToast('自定义维度已保存');
+}
+function deleteDimension(id) {
+  if (!confirm('确认删除该自定义维度？')) return;
+  saveCustomDimensions(loadCustomDimensions().filter(d => d.id !== id));
+  renderDimSection('custom');
+  showToast('已删除');
+}
+
+// ── analyzeHeaders 自定义优先匹配（在原有识别前注入） ──
+// 用法：在原有 analyzeHeaders 里调用 matchCustomFirst(header) 先于内置规则
+function matchCustomFirst(header) {
+  const h = header.trim();
+  // 精确匹配自定义指标
+  for (const m of loadCustomMetrics()) {
+    if (m.name === h) return { field: 'custom_metric_' + m.id, label: m.name, source: 'custom', note: '自定义指标' };
+  }
+  // 精确匹配自定义维度
+  for (const d of loadCustomDimensions()) {
+    if (d.name === h) return { field: 'custom_dim_' + d.id, label: d.name, source: 'custom', note: '自定义维度' };
+  }
+  return null;
+}
+
+// ── 样式补丁：modal-mask / modal / form-row / form-label / form-input / form-select / form-hint ──
+(function injectModalStyles() {
+  if (document.getElementById('modal-style-patch')) return;
+  const s = document.createElement('style');
+  s.id = 'modal-style-patch';
+  s.textContent = `
+    .modal-mask { position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center; }
+    .modal { background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:hidden;min-width:420px; }
+    .modal-header { padding:16px 20px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between; }
+    .modal-title { font-size:15px;font-weight:700;color:#1a1a1a; }
+    .modal-close { background:none;border:none;font-size:16px;color:#aaa;cursor:pointer;padding:2px 6px;border-radius:4px; }
+    .modal-close:hover { background:#f5f5f5;color:#555; }
+    .modal-body { padding:20px; }
+    .modal-footer { padding:14px 20px;border-top:1px solid #f0f0f0;display:flex;justify-content:flex-end;gap:10px; }
+    .form-row { margin-bottom:16px; }
+    .form-label { font-size:13px;font-weight:600;color:#333;margin-bottom:6px; }
+    .form-input { width:100%;padding:8px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;transition:border-color .2s; }
+    .form-input:focus { border-color:#FF6900; }
+    .form-select { width:100%;padding:8px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;background:#fff;cursor:pointer; }
+    .form-hint { font-size:11px;color:#aaa;margin-top:4px; }
+    .btn-default { padding:8px 20px;border:1px solid #e0e0e0;background:#fff;border-radius:8px;font-size:13px;cursor:pointer;color:#555; }
+    .btn-default:hover { background:#f5f5f5; }
+px 20px;background:#FF6900;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer; }
+    .btn-primary:hover { background:#e55d00; }
+    #section-metrics, #section-dimension { display:none;flex-direction:column;flex:1;overflow:hidden; }
+  `;
+  document.head.appendChild(s);
+})();
 
 init();
 </script>
