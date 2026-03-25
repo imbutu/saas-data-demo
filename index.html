@@ -1381,7 +1381,7 @@ async function sendMessage(text, file) {
     } else {
       // Mock模式：本地模拟 AI 对话回复
       await new Promise(r => setTimeout(r, 600));
-      const tenant = TENANT_DB[currentTenantId] || TENANT_DB['t001'];
+      const tenant = getOrGenerateTenant(currentTenantId);
       const mockRows = (tenant.dishes||[]).slice(0,5).map((d,i) => {
         const store = tenant.stores[i % tenant.stores.length];
         const qty = Math.floor(Math.random()*200)+50;
@@ -1725,6 +1725,44 @@ const TENANT_DB = {
     cities: ['成都','重庆','天津','武汉','西安'],
   },
 };
+// 为任意 tenantId 动态生成或缓存 Mock tenant 数据
+const _generatedTenants = {};
+function getOrGenerateTenant(tid) {
+  if (TENANT_DB[tid]) return TENANT_DB[tid];
+  if (_generatedTenants[tid]) return _generatedTenants[tid];
+
+  // 用 tenantId 做随机种子，让同一租户每次结果一致
+  const seed = String(tid).split('').reduce((a,c)=>a+c.charCodeAt(0),0);
+  const rng = (n, s=0) => { const x = Math.sin(seed+n+s)*10000; return Math.abs(x-Math.floor(x)); };
+
+  const cityPools = [['北京','上海','广州','深圳','成都','杭州','武汉','南京','西安','重庆']];
+  const storeSuffixes = ['旗舰店','购物中心店','广场店','步行街店','新城店','中心店','万象城店','环球港店'];
+  const brandName = `商户${tid}`;
+  const cityCount = 3 + (seed % 3);
+  const cities = cityPools[0].slice(seed%7, seed%7+cityCount);
+
+  const stores = cities.flatMap((city, ci) => {
+    const n = 1 + Math.floor(rng(ci)*2);
+    return Array.from({length:n},(_,i)=>[
+      `${brandName}(${city}${storeSuffixes[(seed+ci*3+i)%storeSuffixes.length]})`,
+      `${city.slice(0,2).toUpperCase()}${String(ci*10+i+1).padStart(3,'0')}`
+    ]);
+  });
+
+  const dishCategories = [['招牌菜','主菜',88+Math.floor(rng(1)*60)],['特色小吃','小食',28+Math.floor(rng(2)*20)],
+    ['套餐A','套餐',128+Math.floor(rng(3)*50)],['时令蔬菜','蔬菜',32+Math.floor(rng(4)*15)],
+    ['招牌汤品','汤',48+Math.floor(rng(5)*20)],['主食','主食',22+Math.floor(rng(6)*12)],
+    ['饮品','饮品',18+Math.floor(rng(7)*10)],['甜品','甜点',25+Math.floor(rng(8)*15)]];
+
+  _generatedTenants[tid] = {
+    name: brandName, type: '自定义租户', tenantId: tid,
+    stores, cities,
+    dishes: dishCategories,
+    _generated: true,
+  };
+  return _generatedTenants[tid];
+}
+
 let currentTenantId = 't001';
 
 function applyTenantInput() {
@@ -1782,7 +1820,7 @@ function renderWelcome(tid) {
 
 function mockBuildReportData(analyzeRes, userDesc) {
   const { headers, isChannelTemplate, channels } = analyzeRes;
-  const tenant = TENANT_DB[currentTenantId] || TENANT_DB['t001'];
+  const tenant = getOrGenerateTenant(currentTenantId);
   const cities = tenant.cities;
   const stores = tenant.stores;
   const dishes = tenant.dishes;
@@ -1802,22 +1840,74 @@ function mockBuildReportData(analyzeRes, userDesc) {
       channelDist[ch] = [qty, qty*price];
     });
 
+    // 门店级聚合指标（对所有菜品求和，用 store index 做基数保证门店维度一致）
+    const storeIdx = di % stores.length;
+    const baseOrders = 150 + Math.floor(Math.random()*200) + storeIdx*20;
+    const baseBizAmt = baseOrders * (price*1.8 + Math.floor(Math.random()*50));
+    const baseIncome = Math.floor(baseBizAmt * 0.88);
+    const baseDisc = baseBizAmt - baseIncome;
+    const basePay = Math.floor(baseBizAmt * 0.92);
+    const baseCustomer = Math.floor(baseOrders * 2.3);
+    const lunchRatio = 0.38 + Math.random()*0.12;
+    const dinnerRatio = 1 - lunchRatio;
+    const groupOrderRatio = 0.15 + Math.random()*0.25;
+    const groupIncomeRatio = groupOrderRatio * (0.85 + Math.random()*0.2);
+
     return headers.map(h => {
+      // ── 维度字段 ──
       if(h==='城市') return city;
       if(h==='门店名称') return store[0];
       if(h==='机构编码') return store[1];
       if(h==='菜品名称') return name;
       if(h==='菜品分类') return cat;
-      if(h==='销量') return totalQty;
-      if(h==='销售金额') return totalAmt;
-      if(h==='优惠金额') return discAmt;
-      if(h==='销售收入') return totalAmt-discAmt;
+      if(h==='营业日期'||h==='日期') return new Date().toISOString().slice(0,10).replace(/-/g,'');
+
+      // ── 菜品销售字段 ──
+      if(h==='销量'||h==='数量') return totalQty;
+      if(h==='销售金额'||h==='菜品小计') return totalAmt;
+      if(h==='优惠金额'||h==='菜品优惠') return discAmt;
+      if(h==='销售收入'||h==='菜品实收') return totalAmt-discAmt;
       if(h==='单点销量') return Math.floor(totalQty*0.7);
       if(h==='单点销售额') return Math.floor(totalAmt*0.7);
       if(h==='关联售卖销量') return Math.floor(totalQty*0.3);
       if(h==='关联售卖销售额') return Math.floor(totalAmt*0.3);
+
+      // ── 订单/营业聚合字段 ──
+      if(h==='营业额'||h==='GMV'||h==='营业流水') return baseBizAmt;
+      if(h==='营业收入'||h==='实收金额'||h==='收入金额') return baseIncome;
+      if(h==='优惠金额'||h==='折扣金额') return baseDisc;
+      if(h==='支付金额') return basePay;
+      if(h==='订单量'||h==='订单数'||h==='订单笔数') return baseOrders;
+      if(h==='团购订单量'||h==='团购订单数') return Math.floor(baseOrders*groupOrderRatio);
+      if(h==='团购订单量占比') return (groupOrderRatio*100).toFixed(1)+'%';
+      if(h==='团购订单收入') return Math.floor(baseIncome*groupIncomeRatio);
+      if(h==='团购订单收入占比') return (groupIncomeRatio*100).toFixed(1)+'%';
+
+      // ── 时段字段 ──
+      if(h==='午市营业额') return Math.floor(baseBizAmt*lunchRatio);
+      if(h==='午市营业额占比') return (lunchRatio*100).toFixed(1)+'%';
+      if(h==='晚市营业额') return Math.floor(baseBizAmt*dinnerRatio);
+      if(h==='晚市营业额占比') return (dinnerRatio*100).toFixed(1)+'%';
+
+      // ── 人数字段 ──
+      if(h==='用餐人数'||h==='就餐人数'||h==='客流量'||h==='客流') return baseCustomer;
+      if(h==='午市用餐人数') return Math.floor(baseCustomer*lunchRatio);
+      if(h==='午市人数占比') return (lunchRatio*100).toFixed(1)+'%';
+      if(h==='晚市用餐人数') return Math.floor(baseCustomer*dinnerRatio);
+      if(h==='晚市用餐人数占比') return (dinnerRatio*100).toFixed(1)+'%';
+
+      // ── 渠道分列字段 ──
       const cm = h.match(/^(.+?)_(销量|销售额)$/);
       if(cm && channelDist[cm[1]]) return cm[2]==='销量' ? channelDist[cm[1]][0] : Math.floor(channelDist[cm[1]][1]);
+
+      // ── 其他已映射字段给默认随机值 ──
+      const info = HEADER_MAP[h];
+      if (info) {
+        const f = typeof info === 'object' ? info.field : info;
+        if (f.includes('amt') || f.includes('income') || f.includes('pay')) return Math.floor(Math.random()*50000)+10000;
+        if (f.includes('cnt') || f.includes('cnt') || f.includes('order')) return Math.floor(Math.random()*500)+50;
+        if (f.includes('rate')) return (Math.random()*0.4+0.1).toFixed(3);
+      }
       return '-';
     });
   });
