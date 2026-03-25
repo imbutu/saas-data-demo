@@ -1254,7 +1254,7 @@ function renderConvList() {
 function renderMessages() {
   const conv = getActiveConv(); const msgs = conv ? conv.messages : [];
   const inner = document.getElementById('messages-inner');
-  document.getElementById('empty-state').style.display = msgs.length===0 ? '' : 'none';
+  const _esEl = document.getElementById('empty-state'); if(_esEl) _esEl.style.display = msgs.length===0 ? '' : 'none';
   inner.querySelectorAll('.msg-row').forEach(el => el.remove());
   msgs.forEach(msg => inner.appendChild(buildMsgEl(msg))); scrollBottom();
 }
@@ -1340,7 +1340,8 @@ async function sendMessage(text, file) {
   conv.messages.push(userMsg);
   if (conv.messages.filter(m=>m.role==='user').length===1) conv.title = userMsg.content.slice(0,20)+(userMsg.content.length>20?'...':'');
   ta.value=''; ta.style.height='auto'; setLoading(true);
-  document.getElementById('empty-state').style.display='none';
+  const _es = document.getElementById('empty-state');
+  if (_es) _es.style.display='none';
   document.getElementById('messages-inner').appendChild(buildMsgEl(userMsg));
   appendLoadingMsg();
   try {
@@ -1558,7 +1559,7 @@ function renderWelcome(tid) {
   const inner = document.getElementById('messages-inner');
   if (!inner) return;
   inner.innerHTML = `
-    <div style="text-align:center;padding:40px 20px;color:#aaa">
+    <div class="empty-state" id="empty-state">
       <div style="font-size:32px;margin-bottom:12px">🤖</div>
       <div style="font-size:15px;font-weight:600;color:#555;margin-bottom:6px">${displayName} · AI 取数助手</div>
       <div style="font-size:13px;color:#aaa;margin-bottom:4px">tenantId: <code style="background:#f0f0f0;padding:1px 6px;border-radius:4px;color:#FF6900">${tid}</code> · ${displayType}</div>
