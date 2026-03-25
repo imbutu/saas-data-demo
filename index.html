@@ -1923,6 +1923,28 @@ function mockBuildReportData(analyzeRes, userDesc) {
       if(h==='晚市用餐人数') return Math.floor(baseCustomer*dinnerRatio);
       if(h==='晚市用餐人数占比') return (dinnerRatio*100).toFixed(1)+'%';
 
+      // ── 菜品大类收入构成（按大类名称展示）──
+      // 识别：含"大类"+"收入构成"或类似描述的列
+      if (/菜品大类.*收入|大类.*收入构成|按大类.*名称|品类.*收入构成/.test(h)) {
+        // 按大类聚合所有菜品的销量和收入
+        const cateMap = {};
+        dishes.forEach(([dname, dcat, dprice]) => {
+          const dQty = Math.floor(Math.random()*200)+50;
+          const dAmt = dQty * dprice;
+          if (!cateMap[dcat]) cateMap[dcat] = { qty: 0, amt: 0 };
+          cateMap[dcat].qty += dQty;
+          cateMap[dcat].amt += dAmt;
+        });
+        const totalAmt2 = Object.values(cateMap).reduce((s,v)=>s+v.amt, 0);
+        return Object.entries(cateMap)
+          .sort((a,b) => b[1].amt - a[1].amt)
+          .map(([cat2, v]) => {
+            const pct = totalAmt2 > 0 ? ((v.amt/totalAmt2)*100).toFixed(1) : '0.0';
+            return `${cat2}:销量${v.qty}/收入¥${v.amt.toFixed(0)}(${pct}%)`;
+          })
+          .join(' | ');
+      }
+
       // ── 渠道分列字段 ──
       const cm = h.match(/^(.+?)_(销量|销售额)$/);
       if(cm && channelDist[cm[1]]) return cm[2]==='销量' ? channelDist[cm[1]][0] : Math.floor(channelDist[cm[1]][1]);
