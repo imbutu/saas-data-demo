@@ -1080,8 +1080,8 @@ async function renderMyReports() {
   aiGrid.innerHTML = '<div style="color:#bbb;font-size:13px;padding:12px 0">加载中...</div>';
   try {
     const token = localStorage.getItem('demo_token')||'demo';
-    const resp = await fetch('/api/reports', {headers:{Authorization:`Bearer ${token}`}});
-    const saved = resp.ok ? await resp.json() : [];
+    // Mock: 报表列表（演示模式）
+    const saved = JSON.parse(localStorage.getItem('mock_reports') || '[]');
     aiGrid.innerHTML = '';
     if (saved.length === 0) {
       aiGrid.innerHTML = '<div style="color:#bbb;font-size:13px;padding:12px 0">暂无报表，在「会话」中查询数据后点击「保存到我的报表」</div>';
@@ -1379,9 +1379,23 @@ async function sendMessage(text, file) {
       setLoading(false); renderConvList(); scrollBottom();
       return;
     } else {
-      const history=conv.messages.slice(-6).map(m=>({role:m.role,content:m.role==='user'?m.content:(m.sql?`已生成SQL: ${m.sql}`:m.content)}));
-      const resp=await fetch('/api/chat/query',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({query:msgText,history})});
-      if (!resp.ok) throw new Error(await resp.text()); res=await resp.json();
+      // Mock模式：本地模拟 AI 对话回复
+      await new Promise(r => setTimeout(r, 600));
+      const tenant = TENANT_DB[currentTenantId] || TENANT_DB['t001'];
+      const mockRows = (tenant.dishes||[]).slice(0,5).map((d,i) => {
+        const store = tenant.stores[i % tenant.stores.length];
+        const qty = Math.floor(Math.random()*200)+50;
+        return [tenant.cities[i%tenant.cities.length], store[0], d[0], qty, qty*d[2]];
+      });
+      const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+      res = {
+        reply: `好的，已根据「${msgText}」为租户 ${currentTenantId} 查询到以下数据（Mock示例）：`,
+        sql: `SELECT city_name,store_name,sku_name,SUM(sale_cnt),SUM(sale_amt)\nFROM dwd_dish_sale WHERE dt='${dateStr}' AND tenant_id='${currentTenantId}'\nGROUP BY 1,2,3 ORDER BY sale_amt DESC`,
+        columns: ['城市','门店名称','菜品名称','销量','销售金额'],
+        rows: mockRows,
+        total: mockRows.length,
+        chart_type: 'bar',
+      };
     }
     const aiMsg={
       id:++msgIdCounter, role:'assistant',
@@ -1819,20 +1833,11 @@ function exportReportCsv(msgId) {
 async function saveExcelReport(buildResult) {
   const token = localStorage.getItem('demo_token')||'demo';
   try {
-    const resp = await fetch('/api/reports', {
-      method:'POST',
-      headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
-      body:JSON.stringify({
-        title: buildResult.report_title,
-        sql: buildResult.sql,
-        columns: buildResult.columns,
-        rows: buildResult.rows,
-        chart_type: buildResult.chart_type || 'table',
-        description: '由 Excel 模板生成',
-      })
-    });
-    if (!resp.ok) throw new Error(await resp.text());
-    const saved = await resp.json();
+    // Mock: 保存报表到 localStorage
+    const reports = JSON.parse(localStorage.getItem('mock_reports') || '[]');
+    const saved = { id: 'r' + Date.now(), title: buildResult.report_title, description: '由 Excel 模板生成', created_at: Math.floor(Date.now()/1000), updated_at: Math.floor(Date.now()/1000) };
+    reports.unshift(saved);
+    localStorage.setItem('mock_reports', JSON.stringify(reports.slice(0,20)));
     showToast('✅ 已保存到「我的报表」');
     renderMyReports();
     // 保存成功后，AI 主动发消息询问筛选条件
@@ -1911,8 +1916,8 @@ async function loadReportsIntoModal() {
   const sel = document.getElementById('f-report-id');
   sel.innerHTML = '<option value="">-- 选择报表 --</option>';
   try {
-    const resp = await fetch('/api/reports', { headers: { Authorization: 'Bearer demo' } });
-    const data = await resp.json();
+    // Mock: 从 localStorage 加载报表
+    const data = JSON.parse(localStorage.getItem('mock_reports') || '[]');
     const reports = Array.isArray(data) ? data : (data.reports || []);
     reports.forEach(r => {
       const opt = document.createElement('option');
@@ -1939,8 +1944,8 @@ function onCycleChange() {
 // ─── 加载任务列表 ─────────────────────────────────────────────────────────────
 async function loadExportTasks() {
   try {
-    const resp = await fetch('/api/export-tasks', { headers: { Authorization: 'Bearer demo' } });
-    exportTasksCache = await resp.json();
+    // Mock: 导出任务（演示模式）
+    exportTasksCache = JSON.parse(localStorage.getItem('mock_export_tasks') || '[]');
   } catch (e) { exportTasksCache = []; }
   renderTaskTable();
 }
@@ -1948,8 +1953,8 @@ async function loadExportTasks() {
 // ─── 加载下载记录 ─────────────────────────────────────────────────────────────
 async function loadDownloadRecords() {
   try {
-    const resp = await fetch('/api/downloads', { headers: { Authorization: 'Bearer demo' } });
-    exportRecordsCache = await resp.json();
+    // Mock: 下载记录（演示模式）
+    exportRecordsCache = JSON.parse(localStorage.getItem('mock_downloads') || '[]');
   } catch (e) { exportRecordsCache = []; }
   renderRecordTable();
 }
@@ -2043,12 +2048,22 @@ async function saveTask() {
   const btn = document.getElementById('save-task-btn');
   btn.disabled = true; btn.textContent = '创建中...';
   try {
-    const resp = await fetch('/api/export-tasks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer demo' },
-      body: JSON.stringify(payload),
-    });
-    if (!resp.ok) { const e = await resp.json(); throw new Error(e.detail || '创建失败'); }
+    // Mock: 创建导出任务（存 localStorage）
+    const tasks = JSON.parse(localStorage.getItem('mock_export_tasks') || '[]');
+    const newTask = { id: 't'+Date.now(), ...payload, status:'running', created_at: Math.floor(Date.now()/1000), freq_label: payload.export_type==='fixed'?'单次':'定时' };
+    tasks.unshift(newTask);
+    localStorage.setItem('mock_export_tasks', JSON.stringify(tasks.slice(0,20)));
+    exportTasksCache = tasks;
+    // 模拟 2s 后变成 ready（fixed 类型）
+    if (payload.export_type === 'fixed') {
+      setTimeout(() => {
+        const t = tasks.find(x=>x.id===newTask.id); if(t) { t.status='ready'; t.ready_at=Math.floor(Date.now()/1000); }
+        const recs = JSON.parse(localStorage.getItem('mock_downloads')||'[]');
+        recs.unshift({id:'d'+Date.now(),report_title:payload.report_title||'报表',file_name:(payload.report_title||'报表')+'.csv',status:'ready',created_at:Math.floor(Date.now()/1000),ready_at:Math.floor(Date.now()/1000),date_start:payload.fixed_date_start,date_end:payload.fixed_date_end});
+        localStorage.setItem('mock_downloads', JSON.stringify(recs.slice(0,20)));
+        localStorage.setItem('mock_export_tasks', JSON.stringify(tasks));
+      }, 2000);
+    }
     document.getElementById('task-modal').style.display = 'none';
     showToast(exportType === 'fixed' ? '✅ 任务已创建，正在生成文件，请稍后在下载中心查看' : '✅ 定时导出任务已创建');
     loadExportTasks();
