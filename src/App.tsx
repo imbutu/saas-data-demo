@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { mockFetch } from './mock/index'
+import './App.css'
 
 const IS_MOCK = true // Mock 模式，无需后端
-import './App.css'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
