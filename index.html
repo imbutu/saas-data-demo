@@ -259,15 +259,23 @@
 <!-- ===== 会话面板 ===== -->
 <div class="panel" id="panel-chat">
   <div class="tenant-selector">
-    <div class="tenant-label">🏢 当前租户</div>
-    <select class="tenant-select" id="tenant-select" onchange="onTenantChange(this.value)">
-      <option value="t001">海底捞餐饮集团</option>
-      <option value="t002">西贝莜面餐饮</option>
-      <option value="t003">老乡鸡连锁</option>
-      <option value="t004">外婆家餐饮</option>
-      <option value="t005">蜀大侠火锅</option>
-    </select>
-    <div id="tenant-badge" class="tenant-badge">tenantId: t001 · 直营+加盟</div>
+    <div class="tenant-label">🏢 租户 ID</div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <input id="tenant-input" type="text" placeholder="输入 tenant_id" value="t001"
+        style="flex:1;padding:7px 10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
+               border-radius:8px;color:#fff;font-size:12px;font-family:monospace;outline:none"
+        onkeydown="if(event.key==='Enter')applyTenantInput()"
+        onfocus="this.style.borderColor='rgba(255,105,0,0.5)'"
+        onblur="this.style.borderColor='rgba(255,255,255,0.12)'"
+      />
+      <button onclick="applyTenantInput()"
+        style="padding:7px 10px;background:rgba(255,105,0,0.2);border:1px solid rgba(255,105,0,0.4);
+               border-radius:8px;color:#FF6900;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0"
+        onmouseenter="this.style.background='rgba(255,105,0,0.35)'"
+        onmouseleave="this.style.background='rgba(255,105,0,0.2)'"
+      >确认</button>
+    </div>
+    <div id="tenant-badge" class="tenant-badge" style="margin-top:6px">tenantId: t001 · 演示数据</div>
   </div>
   <div class="panel-header">
     <div class="panel-title">会话管理</div>
@@ -1507,20 +1515,29 @@ const TENANT_DB = {
 };
 let currentTenantId = 't001';
 
+function applyTenantInput() {
+  const input = document.getElementById('tenant-input');
+  if (!input) return;
+  const tid = input.value.trim();
+  if (!tid) return;
+  onTenantChange(tid);
+}
+
 function onTenantChange(tid) {
   currentTenantId = tid;
   const t = TENANT_DB[tid];
-  if (!t) return;
   const badge = document.getElementById('tenant-badge');
-  if (badge) badge.textContent = `tenantId: ${t.tenantId} · ${t.type}`;
-  // 新建对话时带上租户上下文
+  if (t) {
+    if (badge) badge.textContent = `tenantId: ${t.tenantId} · ${t.type}`;
+  } else {
+    // 自定义 tenant_id，非预置租户
+    if (badge) badge.textContent = `tenantId: ${tid} · 自定义租户（演示数据）`;
+  }
   const conv = getActiveConv();
   if (conv && conv.messages.length === 0) {
-    // 空对话直接更新欢迎语
     renderWelcome(tid);
   }
-  // toast 提示
-  showTenantToast(t.name);
+  showTenantToast(t ? t.name : tid);
 }
 
 function showTenantToast(name) {
@@ -1537,14 +1554,16 @@ function showTenantToast(name) {
 }
 
 function renderWelcome(tid) {
-  const t = TENANT_DB[tid] || TENANT_DB['t001'];
+  const t = TENANT_DB[tid];
+  const displayName = t ? t.name : `自定义租户`;
+  const displayType = t ? t.type : '演示数据';
   const inner = document.getElementById('messages-inner');
   if (!inner) return;
   inner.innerHTML = `
     <div style="text-align:center;padding:40px 20px;color:#aaa">
       <div style="font-size:32px;margin-bottom:12px">🤖</div>
-      <div style="font-size:15px;font-weight:600;color:#555;margin-bottom:6px">${t.name} · AI 取数助手</div>
-      <div style="font-size:13px;color:#aaa;margin-bottom:4px">tenantId: <code style="background:#f0f0f0;padding:1px 6px;border-radius:4px;color:#FF6900">${t.tenantId}</code> · ${t.type}</div>
+      <div style="font-size:15px;font-weight:600;color:#555;margin-bottom:6px">${displayName} · AI 取数助手</div>
+      <div style="font-size:13px;color:#aaa;margin-bottom:4px">tenantId: <code style="background:#f0f0f0;padding:1px 6px;border-radius:4px;color:#FF6900">${tid}</code> · ${displayType}</div>
       <div style="font-size:12px;color:#ccc;margin-top:12px">上传 Excel 模板或直接输入问题开始</div>
     </div>`;
 }
