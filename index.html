@@ -1416,14 +1416,46 @@ function handleFilePick(e) { const f=e.target.files?.[0]; if(f) sendMessage(null
 // ===== Excel 模板建报表流程（纯前端 SheetJS，无需后端）=====
 
 // 字段映射表（Excel 中文表头 → 英文字段名）
+// Excel 表头 → DS_SOURCES 真实字段名（label→name）的映射
+// 格式：{ '中文表头': { field: '字段名', source: '数据源key', label: '字段标签' } }
 const HEADER_MAP = {
-  '城市':'cityName','门店名称':'storeName','机构编码':'orgCode',
-  '菜品名称':'skuName','菜品编码':'skuCode','菜品分类':'skuCategory',
-  '销量':'saleCnt','销售金额':'saleAmt','优惠金额':'discountAmt',
-  '销售收入':'incomeAmt','单点销量':'singleSaleCnt','单点销售额':'singleSaleAmt',
-  '关联售卖销量':'relSaleCnt','关联售卖销售额':'relSaleAmt',
-  '店内点餐':'inStoreSaleCnt','微信小程序':'wxMiniSaleCnt',
-  '抖音团购':'douyinSaleCnt','美团团购':'meituanSaleCnt','其他渠道':'otherSaleCnt',
+  // ── 门店维度 ──
+  '城市':           { field:'city_name',        source:'store',   label:'城市' },
+  '门店名称':       { field:'poi_name',          source:'store',   label:'门店名称' },
+  '机构编码':       { field:'org_code',          source:'store',   label:'机构编码' },
+  '门店ID':         { field:'poi_id',            source:'store',   label:'门店ID' },
+
+  // ── 菜品维度 ──
+  '菜品名称':       { field:'spu_name',          source:'dish',    label:'菜品名称' },
+  '菜品编码':       { field:'spu_id',            source:'dish',    label:'菜品SPU ID' },
+  '菜品分类':       { field:'cate_name',         source:'dish',    label:'菜品分类' },
+  'SKU名称':        { field:'sku_name',          source:'dish',    label:'SKU名称' },
+  'SKU编码':        { field:'sku_id',            source:'dish',    label:'菜品SKU ID' },
+
+  // ── 菜品指标 ──
+  '销量':           { field:'sku_cnt',           source:'dish',    label:'数量' },
+  '销售金额':       { field:'sku_total_amt',     source:'dish',    label:'菜品小计' },
+  '优惠金额':       { field:'sku_discount_amt',  source:'dish',    label:'菜品优惠' },
+  '销售收入':       { field:'sku_income_amt',    source:'dish',    label:'菜品实收' },
+  '成本':           { field:'sku_cost_amt',      source:'dish',    label:'菜品成本' },
+
+  // ── 订单维度/指标 ──
+  '营业额':         { field:'biz_amt',           source:'order',   label:'营业额' },
+  '订单金额':       { field:'order_amt',         source:'order',   label:'订单金额' },
+  '支付金额':       { field:'pay_amt',           source:'order',   label:'支付金额' },
+  '就餐人数':       { field:'customer_cnt',      source:'order',   label:'就餐人数' },
+  '营业日期':       { field:'biz_datekey',       source:'order',   label:'营业日期' },
+  '订单来源':       { field:'order_source_enum', source:'order',   label:'订单来源' },
+
+  // ── 支付维度 ──
+  '支付方式':       { field:'pay_type_name',     source:'payment', label:'支付方式' },
+  '支付笔数':       { field:'pay_cnt',           source:'payment', label:'支付笔数' },
+  '实收金额':       { field:'actual_amt',        source:'payment', label:'实收金额' },
+
+  // ── 营销维度 ──
+  '活动名称':       { field:'camp_name',         source:'campaign',label:'活动名称' },
+  '优惠券':         { field:'coupon_name',       source:'campaign',label:'优惠券名称' },
+  '活动优惠额':     { field:'camp_discount_amt', source:'campaign',label:'活动优惠额' },
 };
 const CHANNEL_LABELS = ['店内点餐','微信小程序','抖音团购','美团团购','其他渠道'];
 
@@ -1472,9 +1504,10 @@ async function parseExcelFrontend(file) {
   uniqueHeaders.forEach(h => {
     const m = h.match(/^(.+?)_(销量|销售额)$/);
     if (m) {
-      const chKey = m[1].replace('店内点餐','inStore').replace('微信小程序','wxMini')
-        .replace('抖音团购','douyin').replace('美团团购','meituan').replace('其他渠道','other');
-      mapped[h] = `${chKey}${m[2]==='销量'?'SaleCnt':'SaleAmt'}`;
+      // 渠道分列字段：如「店内点餐_销量」→ 映射到 dish 表的渠道字段
+      const chMap = {'店内点餐':'in_store','微信小程序':'wx_mini','抖音团购':'douyin','美团团购':'meituan','其他渠道':'other'};
+      const chKey = chMap[m[1]] || m[1].toLowerCase().replace(/\s+/g,'_');
+      mapped[h] = { field: `${chKey}_${m[2]==='销量'?'sale_cnt':'sale_amt'}`, source:'dish', label: h };
     } else if (HEADER_MAP[h]) {
       mapped[h] = HEADER_MAP[h];
     } else {
@@ -1669,11 +1702,21 @@ async function handleExcelUpload(file, conv, token) {
   const channelTip = analyzeRes.isChannelTemplate
     ? `<br><span style="color:#6b4fbb;font-size:12px">🔀 检测到渠道模板：${analyzeRes.channels.join('、')}</span>` : '';
 
-  const mappedRows = Object.entries(analyzeRes.mapped||{}).map(([h,f]) =>
-    `<tr><td style="padding:4px 10px;color:#333;font-size:13px">${escHtml(h)}</td>` +
-    `<td style="padding:4px 10px;font-family:monospace;font-size:11px;color:#FF6900">${escHtml(f)}</td>` +
-    `<td style="padding:4px 10px"><span style="background:#e6f9ee;color:#27ae60;padding:1px 7px;border-radius:8px;font-size:11px">✓</span></td></tr>`
-  ).join('');
+  const SOURCE_COLORS = {dish:'#6b4fbb',order:'#1a73e8',payment:'#0a8a5c',campaign:'#c0392b',store:'#e67e22'};
+  const SOURCE_NAMES  = {dish:'菜品',order:'订单',payment:'支付',campaign:'营销',store:'门店'};
+  const mappedRows = Object.entries(analyzeRes.mapped||{}).map(([h,info]) => {
+    const fieldName = typeof info === 'object' ? info.field : info;
+    const src = typeof info === 'object' ? info.source : 'dish';
+    const srcColor = SOURCE_COLORS[src] || '#888';
+    const srcLabel = SOURCE_NAMES[src] || src;
+    return `<tr>
+      <td style="padding:4px 10px;color:#333;font-size:13px">${escHtml(h)}</td>
+      <td style="padding:4px 10px;font-family:monospace;font-size:11px;color:#FF6900">${escHtml(fieldName)}</td>
+      <td style="padding:4px 10px">
+        <span style="background:#e6f9ee;color:#27ae60;padding:1px 6px;border-radius:8px;font-size:11px;margin-right:4px">✓</span>
+        <span style="background:${srcColor}18;color:${srcColor};padding:1px 6px;border-radius:8px;font-size:10px">${srcLabel}</span>
+      </td></tr>`;
+  }).join('');
   const unmappedRows = unmappedList.map(h =>
     `<tr><td style="padding:4px 10px;color:#333;font-size:13px">${escHtml(h)}</td>` +
     `<td style="padding:4px 10px;color:#bbb;font-size:12px">—</td>` +
